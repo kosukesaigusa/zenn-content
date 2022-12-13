@@ -3,7 +3,7 @@ title: "Flutter x Firestore で無限スクロールのチャット機能を実�
 emoji: "💬"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Flutter", "Firestore"]
-published: false
+published: true
 ---
 
 ## 本記事のゴール
@@ -12,7 +12,9 @@ published: false
 
 ゴールは次の動画のようなものです。
 
-TODO: あとで動画などをはる
+![flutterfire-infinite-scroll](/images/articles//flutterfire-infinite-scroll-chat/flutterfire-infinite-scroll.gif)
+
+やや見にくいですが、画面上部のグレー背景のデバッグウィンドウの「取得したメッセージ」が、スクロール操作に従って、少しずつ増えている挙動を確認することができます。
 
 ## サンプルリポジトリ
 
@@ -570,3 +572,13 @@ class ChatRepository implements BaseChatRepository {
 取得したメッセージ全体を保持する `state.messages` を更新していくような実装ができました。
 
 `state.fetching` や `state.hasMore` のフラグを管理しながら無駄な読み込み（意図しない無限読み込み）のないように実装することも重要です。
+
+## 最後に
+
+長めの記事となりましたが最後までお読みいただきありがとうございました。
+
+詳細や、他の実装（Riverpod の使い方、型安全な Firestore の `CollectionReference` や `DocumentReference` の定義、その他の汎用コード）も含めて下記のリポジトリも参考にしていただけると幸いです。
+
+@[card](https://github.com/KosukeSaigusa/flutter-infinite-scroll-chat)
+
+続編として、上記のチャット機能の振る舞いを記述した `Chat` クラスのパブリックメソッドに対するユニットテストを書く記事の執筆も予定しているのでもうしばらくお待ちください！
