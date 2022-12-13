@@ -52,9 +52,10 @@ TODO: あとで動画などをはる
 
 本記事ではチャット機能としてそれっぽい画面を作るウィジェットの組み方の詳細の説明は行いませんので、必要に応じてサンプルアプリを参考にしてください。
 
-重要な箇所だけ抜き出したり、説明のために一部かんたんにしたして、次のようになります。
+重要な箇所だけ抜き出したり、説明のために一部かんたんにしたりして、次のように実装しています。
 
 ```dart:lib/features/chat/ui/chat_room_page.dart
+/// チャットルーム画面。
 class ChatRoomPage extends ConsumerWidget {
   const ChatRoomPage({super.key});
 
@@ -62,15 +63,15 @@ class ChatRoomPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // チャットルームの ID（サンプルアプリでは Provider 経由で Route のパスパラメータから取得するような実装になっています）。
     final chatRoomId = 'some-chat-room-id';
-    // チャットコントローラ
+    // チャットコントローラ。
     final controller = ref.watch(chatControllerProvider(chatRoomId));
-    // 取得されたメッセージ一覧
+    // 取得されたメッセージ一覧。
     final messages = ref.watch(chatProvider(chatRoomId).select((s) => s.messages));
     return Scaffold(
       // messages.length の数だけ
-      // _MessageItem ウィジェットを ListView.builder で並べる
+      // _MessageItem ウィジェットを ListView.builder で並べる。
       body: ListView.builder(
-        // チャットコントローラの ScrollController インスタンス
+        // チャットコントローラの ScrollController インスタンス。
         controller: controller.scrollController,
         itemBuilder: (context, index) => _MessageItem(message: messages[index]),
         itemCount: messages.length,
@@ -91,3 +92,142 @@ class ChatRoomPage extends ConsumerWidget {
 `ChatRoomController` クラスに記述している `ScrollController` のリスナーの設定によって、画面をある程度スクロールする次の 10 件のメッセージを取得する機能を実現しています（後述）。
 
 `ref.watch` で `chatProvider` をリッスンしているので、`messages` 変数に変更がある（新たなメッセージが追加される）ごとにリアクティブに画面上にそれらのメッセージが反映されます。
+
+## ChatController（コントローラ）の実装
+
+次に `ChatController` クラスの説明を行います。行っていることはそれほど多くありません。また、場合によっては上記の UI を `StatefulWidget` にすることで同等の実装を行っても良いでしょう。
+
+重要な箇所だけ抜き出したり、説明のために一部かんたんにしたりして、次のように実装しています。
+
+```dart:lib/features/chat/chat_controller.dart
+final chatControllerProvider = Provider.autoDispose.family<ChatController, String>(
+  (ref, chatRoomId) => ChatController(ref, ref.read(chatProvider(chatRoomId).notifier)),
+);
+
+/// チャット画面での各種操作を行うコントローラ。
+class ChatController {
+  ChatController(this._ref, this._chat) {
+    _initialize();
+    _ref.onDispose(() async {
+      await _newMessagesSubscription.cancel();
+      scrollController.dispose();
+    });
+  }
+
+  final AutoDisposeProviderRef<ChatController> _ref;
+
+  /// チャットモデルのインスタンス。
+  final Chat _chat;
+
+  /// 新着メッセージのサブスクリプション。
+  late final StreamSubscription<List<Message>> _newMessagesSubscription;
+
+  /// メッセージを表示する ListView のコントローラ。
+  late final ScrollController scrollController;
+
+  /// 無限スクロールで取得するメッセージ件数の limit 値。
+  static const _limit = 10;
+
+  /// 画面の何割をスクロールした時点で次の _limit 件のメッセージを取得するか。
+  static const _scrollValueThreshold = 0.8;
+}
+
+  /// 初期化処理。コンストラクタメソッド内でコールする。
+  void _initialize() {
+    _initializeScrollController();
+    _initializeNewMessagesSubscription();
+  }
+
+  /// ListView の ScrollController を初期化して、
+  /// 過去のメッセージを遡って取得するための Listener を設定する。
+  void _initializeScrollController() {
+    scrollController = ScrollController()
+      ..addListener(() async {
+        final scrollValue = scrollController.offset / scrollController.position.maxScrollExtent;
+        if (scrollValue > _scrollValueThreshold) {
+          await _chat.loadMore(limit: _limit);
+        }
+      });
+
+  /// 読み取り開始時刻以降のメッセージを購読して
+  /// 画面に表示する messages に反映させるリスナーを初期化する。
+  void _initializeNewMessagesSubscription() {
+    _newMessagesSubscription = _chat.newMessagesSubscription;
+  }
+}
+```
+
+まずは `ChatController` クラスのコンストラクタとメンバ変数を見ていきます。
+
+コンストラクタ引数として `Chat` モデルのインスタンスを受け取り、コンストラクタメソッドの中でプライベートな `_initialize()` メソッドを実行しています（後述）。
+
+その他、新着メッセージのサブスクリプションや前述のメッセージ一覧の `ListView` ウィジェットの `controller` 属性に指定する `ScrollController` 型の変数をメンバとして定義しています。
+
+`_limit` は、無限スクロールで取得するメッセージの件数を、`_scrollValueThreshold` は画面の何割をスクロールした時点でさらにメッセージを遡って取得するかの閾値を表しています。
+
+```dart:lib/features/chat/chat_controller.dart
+/// チャット画面での各種操作を行うコントローラ。
+class ChatController {
+  ChatController(this._ref, this._chat) {
+    _initialize();
+    _ref.onDispose(() async {
+      await _newMessagesSubscription.cancel();
+      scrollController.dispose();
+    });
+  }
+
+  final AutoDisposeProviderRef<ChatController> _ref;
+
+  /// チャットモデルのインスタンス。
+  final Chat _chat;
+
+  /// 新着メッセージのサブスクリプション。
+  late final StreamSubscription<List<Message>> _newMessagesSubscription;
+
+  /// メッセージを表示する ListView のコントローラ。
+  late final ScrollController scrollController;
+
+  /// 無限スクロールで取得するメッセージ件数の limit 値。
+  static const _limit = 10;
+
+  /// 画面の何割をスクロールした時点で次の _limit 件のメッセージを取得するか。
+  static const _scrollValueThreshold = 0.8;
+}
+```
+
+`_initialize()` メソッドは次のように実装しています。
+
+`_initializeScrollController()` コントローラメソッドでは、`ScrollController` のインスタンスを `scrollController` 変数に格納した上で、`addLister` でスクロールの変化をリッスンします。
+
+リスナーの中で、スクロール量が閾値を超えたときに `Chat` モデルの `loadMore()` メソッドをコールすることで、次の `_limit` 件のメッセージを取得します（後述）。
+
+`_newMessagesSubscription` 変数には単に `Chat` モデルの同名の変数 (getter) の値を格納しているだけです。
+
+```dart:lib/features/chat/chat_controller.dart
+class ChatController {
+  // ... 省略
+
+  /// 初期化処理。コンストラクタメソッド内でコールする。
+  void _initialize() {
+    _initializeScrollController();
+    _initializeNewMessagesSubscription();
+  }
+
+  /// ListView の ScrollController を初期化して、
+  /// 過去のメッセージを遡って取得するための Listener を設定する。
+  void _initializeScrollController() {
+    scrollController = ScrollController()
+      ..addListener(() async {
+        final scrollValue = scrollController.offset / scrollController.position.maxScrollExtent;
+        if (scrollValue > _scrollValueThreshold) {
+          await _chat.loadMore(limit: _limit);
+        }
+      });
+
+  /// 読み取り開始時刻以降のメッセージを購読して
+  /// 画面に表示する messages に反映させるリスナーを初期化する。
+  void _initializeNewMessagesSubscription() {
+    _newMessagesSubscription = _chat.newMessagesSubscription;
+  }
+}
+```
