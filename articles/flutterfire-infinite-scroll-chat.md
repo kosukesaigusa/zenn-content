@@ -45,3 +45,47 @@ published: false
 - `Chat` クラス：`Chat` モデルとして、チャット機能のふるまいを表現する
 
 `riverpod`, `freezed`, `cloud_firestore` パッケージの利用を前提とした実装・説明となっているので、同様のパッケージを用いない場合は適宜読み替えてください。
+
+## UI (ChatRoomPage) の実装
+
+本記事ではチャット機能としてそれっぽい画面を作るウィジェットの組み方の詳細の説明は行いませんので、必要に応じてサンプルアプリを参考にしてください。
+
+重要な箇所だけ抜き出したり、説明のために一部かんたんにしたして、次のようになります。
+
+```dart:lib/features/chat/ui/chat_room_page.dart
+class ChatRoomPage extends ConsumerWidget {
+  const ChatRoomPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // チャットルームの ID（サンプルアプリでは Provider 経由で Route のパスパラメータから取得するような実装になっています）。
+    final chatRoomId = 'some-chat-room-id';
+    // チャットコントローラ
+    final controller = ref.watch(chatControllerProvider(chatRoomId));
+    // 取得されたメッセージ一覧
+    final messages = ref.watch(chatProvider(chatRoomId).select((s) => s.messages));
+    return Scaffold(
+      // messages.length の数だけ
+      // _MessageItem ウィジェットを ListView.builder で並べる
+      body: ListView.builder(
+        // チャットコントローラの ScrollController インスタンス
+        controller: controller.scrollController,
+        itemBuilder: (context, index) => _MessageItem(message: messages[index]),
+        itemCount: messages.length,
+        reverse: true,
+      ),
+    );
+  }
+}
+```
+
+多くありませんが、注目すべきポイントは
+
+- `ChatRoomController` クラスの `ScrollController` インスタンスを、`ListView` の `controller` 属性に指定していること
+- `Chat` クラスの `messages` の数だけ、`ListView.builder` で `MessageItem` ウィジェットを並べていること
+
+くらいでしょうか。
+
+`ChatRoomController` クラスに記述している `ScrollController` のリスナーの設定によって、画面をある程度スクロールする次の 10 件のメッセージを取得する機能を実現しています（後述）。
+
+`ref.watch` で `chatProvider` をリッスンしているので、`messages` 変数に変更がある（新たなメッセージが追加される）ごとにリアクティブに画面上にそれらのメッセージが反映されます。
