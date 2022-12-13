@@ -12,7 +12,7 @@ published: true
 
 ゴールは次の動画のようなものです。
 
-![flutterfire-infinite-scroll](/images/articles//flutterfire-infinite-scroll-chat/flutterfire-infinite-scroll.gif)
+![flutterfire-infinite-scroll](/images/articles/flutterfire-infinite-scroll-chat/flutterfire-infinite-scroll.gif)
 
 やや見にくいですが、画面上部のグレー背景のデバッグウィンドウの「取得したメッセージ」が、スクロール操作に従って、少しずつ増えている挙動を確認することができます。
 
