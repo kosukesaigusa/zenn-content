@@ -435,7 +435,6 @@ Future<void> loadMore() async {
 
   // 遡って取得を始める。
   state = state.copyWith(fetching: true);
-  }
 
   // ... 省略
 }
