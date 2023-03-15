@@ -58,7 +58,7 @@ geoflutterfire_plus は `cloud_firestore` パッケージに依存している�
 
 ```dart
 /// 東京駅の緯度経度。
-const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 ```
 
 ### 位置情報を Cloud Firestore で取り扱う (`GeoCollectionReference`)
@@ -71,25 +71,29 @@ const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 
 ```dart
 /// 通常通り CollectionReference を定義する。
-final CollectionReference<Map<String, dynamic>> collectionReference = FirebaseFirestore.instance.collection('locations');
+CollectionReference<Map<String, dynamic>> collectionReference = FirebaseFirestore.instance.collection('locations');
 
 /// GeoCollectionReference を定義する。
-final GeoCollectionReference<Map<String, dynamic>>  geoCollectionReference = GeoCollectionReference(collectionReference);
+GeoCollectionReference<Map<String, dynamic>>  geoCollectionReference = GeoCollectionReference(collectionReference);
 ```
 
 `withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
 
 ```dart
 /// 通常通り型付きの CollectionReference を定義する。
-final CollectionReference<Location> typedCollectionReference =
+CollectionReference<Location> typedCollectionReference =
     FirebaseFirestore.instance.collection('locations').withConverter<Location>(
           fromFirestore: (ds, _) => Location.fromDocumentSnapshot(ds),
           toFirestore: (obj, _) => obj.toJson(),
         );
 
 /// 型付きのGeoCollectionReference を定義する。
-final GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionReference(typedCollectionReference);
+GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionReference(typedCollectionReference);
 ```
+
+この場合の `Location` クラスの内容を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/main/example/lib/advanced/entity.dart)
 
 ### 位置情報データを保存する (add, set)
 
