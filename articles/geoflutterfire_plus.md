@@ -46,6 +46,10 @@ geoflutterfire_plus パッケージをただ使用して、Flutter で位置情�
 
 ## 基本的な機能や使い方の紹介
 
+この章では、geoflutterfire_plus パッケージの基本的な機能や使い方を紹介します。
+
+説明の目的で型注釈などは冗長に書いている箇所があります。
+
 ### 緯度経度の取り扱い
 
 geoflutterfire_plus は `cloud_firestore` パッケージに依存しているので、緯度経度に関する情報を取り扱うときは、`cloud_firestore` パッケージで定義されている `GeoPoint` クラスを使用すると良いです。`geoflutterfire_plus` パッケージも内部でそのようにしています。
@@ -53,7 +57,38 @@ geoflutterfire_plus は `cloud_firestore` パッケージに依存している�
 `GeoPoint` クラスは単に緯度経度をメンバにもつクラスです。
 
 ```dart
-GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+/// 東京駅の緯度経度。
+const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+```
+
+### 位置情報を Cloud Firestore で取り扱う (`GeoCollectionReference`)
+
+位置情報を Cloud Firestore で取り扱うということは、何らかのコレクションにそのようなデータを保存するということになります。
+
+たとえばトップレベルの locations という名前のコレクションがそれを担当するとするとき、geoflutterfire_plus パッケージが提供する `GeoCollectionReference` クラスを用いて、そのコレクションへの参照を定義することができます。
+
+`GeoCollectionReference` のコンストラクタは、通常の `cloud_firestore` パッケージの `CollectionReference<T>` 型のコレクションへの参照を要求します。
+
+```dart
+/// 通常通り CollectionReference を定義する。
+final CollectionReference<Map<String, dynamic>> collectionReference = FirebaseFirestore.instance.collection('locations');
+
+/// GeoCollectionReference を定義する。
+final GeoCollectionReference<Map<String, dynamic>>  geoCollectionReference = GeoCollectionReference(collectionReference);
+```
+
+`withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
+
+```dart
+/// 通常通り型付きの CollectionReference を定義する。
+final CollectionReference<Location> typedCollectionReference =
+    FirebaseFirestore.instance.collection('locations').withConverter<Location>(
+          fromFirestore: (ds, _) => Location.fromDocumentSnapshot(ds),
+          toFirestore: (obj, _) => obj.toJson(),
+        );
+
+/// 型付きのGeoCollectionReference を定義する。
+final GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionReference(typedCollectionReference);
 ```
 
 ### 位置情報データを保存する (add, set)
@@ -64,9 +99,9 @@ GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 
 ### 位置情報データを取得する (list)
 
-#### リアルタイムで取得する (Stream)
+#### リアルタイムで取得する (`Stream`)
 
-#### 都度取得する (Future)
+#### 都度取得する (`Future`)
 
 #### 任意のフィルタ条件（where 句）を追加する
 
