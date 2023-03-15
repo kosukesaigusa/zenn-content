@@ -37,3 +37,9 @@ published: true
 @[card](https://pub.dev/packages/geoflutterfire2)
 
 が、基本的なコードは元の geoflutterfire パッケージと変わりません。
+
+## Geohash について
+
+この章では geoflutterfire_plus パッケージが位置情報クエリを動作させるために使用している Geohash という仕組みについて、参考になる情報を示しながら、かんたんに解説します。
+
+geoflutterfire_plus パッケージをただ使用して、Flutter で位置情報関係のアプリ開発を行いたいだけの方は読み飛ばして、内部の興味がわいたときに読んでみても良いかもしれません。
