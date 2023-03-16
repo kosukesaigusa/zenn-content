@@ -123,6 +123,42 @@ print(geoFirePoint.data);
 
 ### 位置情報データを保存する (add, set)
 
+次に位置情報データを保存する方法を紹介します。
+
+といっても、単に `GeoCollectionReference.add` メソッドを使用するだけです。内部実装的にも単に `CollectionReference.add` メソッドを使用しているのと同等です。
+
+このとき、`GeoFirePoint.data` を用いて Geohash 文字列を保存しておくと後にその Geohash 文字列を頼りに位置情報クエリを書くことができます。
+
+```dart
+Future<DocumentReference<Map<String, dynamic>>> addGeoData() async {
+  CollectionReference<Map<String, dynamic>> collectionReference =
+      FirebaseFirestore.instance.collection('locations');
+  GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
+      GeoCollectionReference<Map<String, dynamic>>(collectionReference);
+  GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+   geoFirePoint = GeoFirePoint(tokyoStation);
+
+  // GeoCollectionReference の add メソッドを呼ぶ。
+  // geoFirePoint.data の Map<String, dynamic> のデータが
+  // Cloud Firestore のドキュメントに保存される。
+  return geoCollectionReference.add(geoFirePoint.data);
+}
+```
+
+また、同様に `CollectionReference.doc('your-document-id').set` (`DocumentReference.set`) に対応する `GeoCollectionReference.set` メソッドも提供しています。こちらもやはり内部実装は `CollectionReference.set` メソッドを使用しているのと同等で使い方もかんたんです。
+
+```dart
+Future<DocumentReference<Map<String, dynamic>>> setGeoData() async {
+  // ... 省略
+
+  //
+  return geoCollectionReference.set(
+    id: 'your-document-id', 
+    data: geoFirePoint.data,
+    merge: false,
+  );
+```
+
 ### 位置情報データを更新する (update)
 
 ### 位置情報データを削除する (delete)
