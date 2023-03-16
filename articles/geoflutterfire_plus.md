@@ -57,7 +57,7 @@ geoflutterfire_plus は `cloud_firestore` パッケージに依存している�
 `GeoPoint` クラスは単に緯度経度をメンバにもつクラスです。
 
 ```dart
-/// 東京駅の緯度経度。
+// 東京駅の緯度経度。
 GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 ```
 
@@ -70,24 +70,24 @@ GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 `GeoCollectionReference` のコンストラクタは、通常の `cloud_firestore` パッケージの `CollectionReference<T>` 型のコレクションへの参照を要求します。
 
 ```dart
-/// 通常通り CollectionReference を定義する。
+// 通常通り CollectionReference を定義する。
 CollectionReference<Map<String, dynamic>> collectionReference = FirebaseFirestore.instance.collection('locations');
 
-/// GeoCollectionReference を定義する。
+// GeoCollectionReference を定義する。
 GeoCollectionReference<Map<String, dynamic>>  geoCollectionReference = GeoCollectionReference(collectionReference);
 ```
 
 `withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
 
 ```dart
-/// 通常通り型付きの CollectionReference を定義する。
+// 通常通り型付きの CollectionReference を定義する。
 CollectionReference<Location> typedCollectionReference =
     FirebaseFirestore.instance.collection('locations').withConverter<Location>(
           fromFirestore: (ds, _) => Location.fromDocumentSnapshot(ds),
           toFirestore: (obj, _) => obj.toJson(),
         );
 
-/// 型付きのGeoCollectionReference を定義する。
+// 型付きのGeoCollectionReference を定義する。
 GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionReference(typedCollectionReference);
 ```
 
@@ -97,7 +97,29 @@ GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionRefe
 
 ### 位置情報データを定義する (`GeoFirePoint`)
 
-geoflutterfire_plus パッケージでは、位置情報 `GeoFirePoint` という
+geoflutterfire_plus パッケージでは、位置情報を取り扱うための `GeoFirePoint` というクラスを定義しています。
+
+`GeoFirePoint` クラスは、`GeoPoint`（緯度経度）をコンストラクタ引数と作成することができ、`.geohash` でその Geohash 文字列を計算して返したり、`.data` で `GeoPoint` と Geohash 文字列をセットで返したりする機能が実装されています。
+
+以下の例で示すように単に `geoFirePoint.geohash` とするだけで、該当地点の Geohash 文字列を得ることができます。
+
+```dart
+// 東京駅の緯度経度。
+GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+
+// GeoPoint インスタンスを渡して GeoFirePoint を定義する。
+GeoFirePoint geoFirePoint = GeoFirePoint(geoPoint);
+
+// Geohash を取得する。東京駅の Geohash 文字列 'xn76urx4r' が出力される。
+print(geoFirePoint.geohash);
+
+// GeoPoint と Geohash 文字列をもつ Map<String, dynamic> を返す。
+// <String, dynamic>{ 
+//   'geopoint': GeoPoint(35.681236, 139.767125),
+//   'geohash': xn76urx4r
+// } 
+print(geoFirePoint.data);
+```
 
 ### 位置情報データを保存する (add, set)
 
