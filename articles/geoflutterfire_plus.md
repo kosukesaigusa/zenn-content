@@ -191,6 +191,8 @@ Future<void> updateGeoData() async {
 
 ### 位置情報データを削除する (delete)
 
+ドキュメントの削除は、単に `GeoCollectionReference.delete` メソッドを呼びます。内部ではやはり `CollectionReference.doc('your-document-id').update` (`DocumentReference.update`) メソッドを使用しており、指定したフィールドだけが更新されます。
+
 ### 位置情報データを取得する (list)
 
 #### リアルタイムで取得する (`Stream`)
