@@ -58,7 +58,7 @@ geoflutterfire_plus は `cloud_firestore` パッケージに依存している�
 
 ```dart
 // 東京駅の緯度経度。
-GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 ```
 
 ### 位置情報を Cloud Firestore で取り扱う (`GeoCollectionReference`)
@@ -71,10 +71,12 @@ GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 
 ```dart
 // 通常通り CollectionReference を定義する。
-CollectionReference<Map<String, dynamic>> collectionReference = FirebaseFirestore.instance.collection('locations');
+final CollectionReference<Map<String, dynamic>> collectionReference =
+    FirebaseFirestore.instance.collection('locations');
 
 // GeoCollectionReference を定義する。
-GeoCollectionReference<Map<String, dynamic>>  geoCollectionReference = GeoCollectionReference(collectionReference);
+final GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
+    GeoCollectionReference(collectionReference);
 ```
 
 `withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
@@ -88,7 +90,8 @@ CollectionReference<Location> typedCollectionReference =
         );
 
 // 型付きのGeoCollectionReference を定義する。
-GeoCollectionReference<Location> typedGeoCollectionReference = GeoCollectionReference(typedCollectionReference);
+final GeoCollectionReference<Location> typedGeoCollectionReference =
+    GeoCollectionReference(typedCollectionReference);
 ```
 
 この場合の `Location` クラスの内容を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
@@ -105,19 +108,19 @@ geoflutterfire_plus パッケージでは、位置情報を取り扱うための
 
 ```dart
 // 東京駅の緯度経度。
-GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+  const tokyoStation = GeoPoint(35.681236, 139.767125);
 
 // GeoPoint インスタンスを渡して GeoFirePoint を定義する。
-GeoFirePoint geoFirePoint = GeoFirePoint(geoPoint);
+const geoFirePoint = GeoFirePoint(tokyoStation);
 
 // Geohash を取得する。東京駅の Geohash 文字列 'xn76urx4r' が出力される。
 print(geoFirePoint.geohash);
 
 // GeoPoint と Geohash 文字列をもつ Map<String, dynamic> を返す。
-// <String, dynamic>{ 
+// <String, dynamic>{
 //   'geopoint': GeoPoint(35.681236, 139.767125),
 //   'geohash': xn76urx4r
-// } 
+// }
 print(geoFirePoint.data);
 ```
 
@@ -131,12 +134,12 @@ print(geoFirePoint.data);
 
 ```dart
 Future<DocumentReference<Map<String, dynamic>>> addGeoData() async {
-  CollectionReference<Map<String, dynamic>> collectionReference =
+  final CollectionReference<Map<String, dynamic>> collectionReference =
       FirebaseFirestore.instance.collection('locations');
-  GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
+  final GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
       GeoCollectionReference<Map<String, dynamic>>(collectionReference);
-  GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
-   geoFirePoint = GeoFirePoint(tokyoStation);
+  const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+  const GeoFirePoint geoFirePoint = GeoFirePoint(tokyoStation);
 
   // GeoCollectionReference の add メソッドを呼ぶ。
   // geoFirePoint.data の Map<String, dynamic> のデータが
@@ -148,15 +151,19 @@ Future<DocumentReference<Map<String, dynamic>>> addGeoData() async {
 また、同様に `CollectionReference.doc('your-document-id').set` (`DocumentReference.set`) に対応する `GeoCollectionReference.set` メソッドも提供しています。こちらもやはり内部実装は `CollectionReference.set` メソッドを使用しているのと同等で使い方もかんたんです。
 
 ```dart
-Future<DocumentReference<Map<String, dynamic>>> setGeoData() async {
+Future<void> setGeoData() async {
   // ... 省略
 
-  //
+  // GeoCollectionReference の set メソッドを呼ぶ。
+  // geoFirePoint.data の Map<String, dynamic> のデータが
+  // Cloud Firestore のドキュメントに保存される。
+  // cloud_firestore の [SetOptions] も同様に使用できる。
   return geoCollectionReference.set(
-    id: 'your-document-id', 
+    id: 'your-document-id',
     data: geoFirePoint.data,
-    merge: false,
+    options: SetOptions(merge: false),
   );
+}
 ```
 
 ### 位置情報データを更新する (update)
