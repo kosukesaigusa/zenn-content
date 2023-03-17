@@ -168,6 +168,27 @@ Future<void> setGeoData() async {
 
 ### 位置情報データを更新する (update)
 
+今度は保存済みの位置情報データを更新する方法を紹介します。
+
+位置情報データを含むフィールド名を指定し、更新したい位置情報を `GeoPoint` で与えて、`GeoCollectionReference.updatePoint` メソッドを呼びます。内部ではやはり `CollectionReference.doc('your-document-id').update` (`DocumentReference.update`) メソッドを使用しており、指定したフィールドだけが更新されます。
+
+なお、このメソッドを使用するのに `GeoPoint` つまり緯度経度の情報のみを与えればよく、内部で自動でその地点の Geohash を計算した結果も更新します。
+
+```dart
+Future<void> updateGeoData() async {
+  // 東京駅の緯度経度で更新したい。
+  const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
+
+  // GeoCollectionReference の update メソッドを呼ぶ。
+  // 指定した 'geo' フィールドを東京駅の緯度経度で更新する。
+  return geoCollectionReference.updatePoint(
+    id: 'your-document-id',
+    field: 'geo',
+    geoPoint: tokyoStation,
+  );
+}
+```
+
 ### 位置情報データを削除する (delete)
 
 ### 位置情報データを取得する (list)
