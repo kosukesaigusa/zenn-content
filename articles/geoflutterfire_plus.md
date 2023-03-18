@@ -204,9 +204,95 @@ Future<void> deleteGeoData() async {
 
 ### 位置情報データを取得する (list)
 
-#### リアルタイムで取得する (`Stream`)
+いよいよ位置情報データの取得の方法を紹介します。
+
+上述までの方法で Cloud Firestore のあるコレクションに、特定の名前のフィールド（上の例では `geo` というフィールド）に、`GeoPoint` の値（緯度経度）と Geohash 文字列が Cloud Firestore の map 型（≒ Dart の Map 型）で保存されているはずです。
+
+それらの保存済みの位置情報データの中から、指定した中心位置 (`center`) から指定した半径 R [km] (`radiusInIKm`) 以内に位置するドキュメントを取得する方法として、geoflutterfire_plus パッケージでは次の 2 つのメソッドを提供しています。
+
+- `Future` 型で都度取得するメソッド：`GeoCollectionReference.fetchWithin`
+- `Stream` 方で購読するメソッド：`GeoCollectionReference.subscribeWithin`
 
 #### 都度取得する (`Future`)
+
+返り値は `Future<List<DocumentSnapshot<T>>>` 型です。総称型の `T` は `GeoCollectionReference` にどのような型をつけているかによります。特に型を付けていなければ `Map<String, dynamic>` になるでしょう。`withConverter` を使っていればそれで付けた型になります。
+
+必須のパラメータは以下の通りです。
+
+- 中心位置：`GeoFirePoint` 型 `center`
+- 検出半径 (km)：`double` 型 `radiusInKm`
+- フィールド名：`String` 型 `field`
+- `T` 型オブジェクトから `GeoPoint` インスタンスを作成する関数：`GeoPoint Function(T obj)` 型 `geopointFrom`
+
+最後の `GeoPoint Function(T obj)` 型の `geopointFrom` というパラメータはやや複雑なので説明を加えます。
+
+これは、`T` 型のオブジェクト（上で述べた通り `withConverter` などで `GeoCollectionReference` に型をつけていればその型が、付けていなければ `Map<String, dynamic>` 型になるでしょう）から、`GeoPoint` 型のインスタンスを生成する関数を求めるものです。
+
+たとえば、型を付けていないとき、対象ドキュメントの `geo` という map 型のフィールドに `geopoint` というキー名で `GeoPoint` 型の値を保存しているならば、次のように記述します。
+
+```dart
+GeoPoint Function(Map<String, dynamic> data) geopointFrom =
+    (data) => (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint;
+```
+
+たとえば、ドキュメントに `Location` という型がついていて、`Location.geo.geopoint` で `GeoPoint` 型の値を得られるときは次のように記述します。
+
+```dart
+GeoPoint Function(Location location) geopointFrom =
+    (location) => location.geo.geopoint;
+```
+
+よって、locations コレクションのドキュメント（`geo` フィールドに `GeoFirePoint.data` 相当の map 型のデータが保存されている想定）から、東京駅を中心に、半径 50 km 以内に位置するデータだけを取得する方法は下記のようになります。
+
+```dart
+Future<List<DocumentSnapshot<Map<String, dynamic>>>> fetchGeoData() async {
+  const GeoPoint center = GeoPoint(35.681236, 139.767125);
+  final CollectionReference collectionReference =
+      FirebaseFirestore.instance.collection('locations');
+  return GeoCollectionReference(collectionReference).fetchWithin(
+    center: const GeoFirePoint(center),
+    radiusInKm: 50,
+    field: 'geo',
+    geopointFrom: (data) =>
+        (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint,
+    strictMode: true,
+  );
+}
+```
+
+任意のパラメータとして `bool` 方の `strictMode` というものがあります。デフォルトで `false` ですが、`false` の場合は実際の検出範囲から `1.02` 倍のバッファをもたせた半径を検出範囲とします。`true` の場合はバッファを設けず指定した通りの半径で検出を行います。
+
+ちなみに、この `Future` 型の都度取得のメソッドは geoflutterfire_plus で新たに機能追加したものです。
+
+次章の `Stream` 型を返す購読以外と異なり、リクエストしたタイミングで都度取得するので、読み取りコストや体験の最適化につながる場合に使用してください。
+
+パッケージの doc comment でも各パラメータの意味を説明しているので参考にしてください。
+
+#### リアルタイムで取得する (`Stream`)
+
+次はリアルタイムに取得した結果を `Stream` 型で返す `GeoCollectionReference.subscribeWithin` メソッドの紹介です。
+
+返り値は `Stream<List<DocumentSnapshot<T>>>` 型です。
+
+使用方法は都度取得の `GeoCollectionReference.fetchWithin` と全く同じです。
+
+```dart
+Stream<List<DocumentSnapshot<Map<String, dynamic>>>> subscribeGeoData() async {
+  const GeoPoint center = GeoPoint(35.681236, 139.767125);
+  final CollectionReference collectionReference =
+      FirebaseFirestore.instance.collection('locations');
+  return GeoCollectionReference(collectionReference).subscribeWithin(
+    center: const GeoFirePoint(center),
+    radiusInKm: 50,
+    field: 'geo',
+    geopointFrom: (data) =>
+        (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint,
+    strictMode: true,
+  );
+}
+```
+
+たとえば、検出の中心位置や検出半径をユーザーインターフェースで操作しながらリアルタイムで位置情報データを取得していくような場合に使用してください。
 
 #### 任意のフィルタ条件（where 句）を追加する
 
