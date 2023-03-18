@@ -191,7 +191,17 @@ Future<void> updateGeoData() async {
 
 ### 位置情報データを削除する (delete)
 
-ドキュメントの削除は、単に `GeoCollectionReference.delete` メソッドを呼びます。内部ではやはり `CollectionReference.doc('your-document-id').update` (`DocumentReference.update`) メソッドを使用しており、指定したフィールドだけが更新されます。
+ドキュメントの削除は、単に `GeoCollectionReference.delete` メソッドを呼びだけです。内部ではやはり `CollectionReference.doc('your-document-id').delete` (`DocumentReference.delete`) メソッドを使用しているだけです。
+
+```dart
+Future<void> deleteGeoData() async {
+  // ... 省略
+
+  // GeoCollectionReference の delete メソッドを呼ぶ。
+  // 指定したドキュメントが削除される。
+  return geoCollectionReference.delete(id: 'your-document-id');
+}
+```
 
 ### 位置情報データを取得する (list)
 
