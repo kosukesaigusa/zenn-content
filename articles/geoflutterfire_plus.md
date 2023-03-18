@@ -296,4 +296,44 @@ Stream<List<DocumentSnapshot<Map<String, dynamic>>>> subscribeGeoData() async {
 
 #### 任意のフィルタ条件（where 句）を追加する
 
+上述までで、基本的な位置情報データの都度取得・購読の方法を紹介しました。
+
+geoflutterfire_plus の `GeoCollectionReference.fetchWithin`, `GeoCollectionReference.subscribeWithin` メソッドでは、`Query<T>? Function(Query<T> query)?` 型の `queryBuilder` という任意のパラメータで、任意のフィルタ条件を追加することができます。
+
+たとえば上述までと同様の位置情報クエリに、`isVisible` というフィールドが `true` のドキュメントだけをフィルタしたい場合、次のように `queryBuilder` パラメータに、`Query<T>` 型の `query` という値を受け取って、任意のフィルタ条件（where 句など）を追加した新たな `Query<T>` 型の値を返すような関数を指定します。
+
+```dart
+Future<List<DocumentSnapshot<Map<String, dynamic>>>> fetchVisibleGeoData() async {
+  const center = GeoPoint(35.681236, 139.767125);
+  final collectionReference =
+      FirebaseFirestore.instance.collection('locations');
+  return GeoCollectionReference(collectionReference).fetchWithin(
+    center: const GeoFirePoint(center),
+    radiusInKm: 50,
+    field: 'geo',
+    geopointFrom: (data) =>
+        (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint,
+    // where('isVisible', isEqualTo: true) のフィルタ条件を追加する
+    queryBuilder: (query) => query.where('isVisible', isEqualTo: true),
+    strictMode: true,
+  );
+}
+```
+
+注意点として、このようなクエリは複合インデックスを必要とするので、もしそのようなインデックスが生成されていない状態で実行すると "[cloud_firestore/failed-precondition] The query requires an index..." というエラーメッセージとともにエラーが発生するでしょう。コンソール上のそのエラーメッセージに、対応するインデックスを作成するためのリンクが表示されるはずなので、それをクリックしてインデックスを生成した後に再度実行するとその通りに動作するはずです。
+
 ## geoflutterfire パッケージとの対応（移行ガイドとしても）
+
+後日追記します。
+
+## さいごに
+
+geoflutterfire_plus パッケージと使い方の紹介をしてきました。パッケージに更新があり次第更新していく予定です。
+
+今後の開発のモチベーションになりますので、pub.dev のパッケージページへ LIKE 👍 や GitHub リポジトリへのスターをいただけると嬉しいです！
+
+@[card](https://pub.dev/packages/geoflutterfire_plus)
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus)
+
+パッケージに関するご不明点や見つけたバグ、Pull Request なども GitHub の該当リポジトリ上でお待ちしております。
