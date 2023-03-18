@@ -108,10 +108,10 @@ geoflutterfire_plus パッケージでは、位置情報を取り扱うための
 
 ```dart
 // 東京駅の緯度経度。
-  const tokyoStation = GeoPoint(35.681236, 139.767125);
+const GeoPoint tokyoStation = GeoPoint(35.681236, 139.767125);
 
 // GeoPoint インスタンスを渡して GeoFirePoint を定義する。
-const geoFirePoint = GeoFirePoint(tokyoStation);
+const GeoFirePoint geoFirePoint = GeoFirePoint(tokyoStation);
 
 // Geohash を取得する。東京駅の Geohash 文字列 'xn76urx4r' が出力される。
 print(geoFirePoint.geohash);
