@@ -8,7 +8,7 @@ published: true
 
 ## geoflutterfire_plus パッケージ
 
-この記事では、Flutter x Firestore で位置情報クエリがかける pub パッケージである geoflutterfire_plus を紹介し、主な使用方法をまとめたり、サンプルアプリを紹介したりします。
+この記事では、著者が開発・リリースした、Flutter x Firestore で位置情報クエリがかける pub パッケージである geoflutterfire_plus を紹介し、主な使用方法をまとめたり、サンプルアプリを紹介したりします。
 
 @[card](https://pub.dev/packages/geoflutterfire_plus)
 
@@ -33,6 +33,8 @@ published: true
 @[card](https://pub.dev/packages/geoflutterfire)
 
 しかし、このパッケージは記事執筆時点で約 1 年ほどメンテナンスが止まっており、肝心の `cloud_firestore` などの依存パッケージが最新に対応しておらず、開発中のアプリが新しいバージョンの `cloud_firestore` パッケージを使用している場合には、依存関係の解決時にコンフリクトが生じしてしまい、使用することができません。
+
+![geoflutterfire_pubspec.png](/images/articles/geoflutterfire_plus/geoflutterfire_pubspec.png)
 
 依存パッケージを最新にする PR を継続して作成することも検討しましたが、その流れで内部のソースコードを詳しく読んでみると、ソースコードや設計にも根本から修正した方が良いと思われる箇所が多く、しばらくはフォークして自分なりに改善したものを使用していました。その修正がまとまったものになってきたタイミングで、一からパッケージを作り直して公開しようと思ったのが開発のきっかけです。
 
@@ -70,29 +72,31 @@ Geohash は位置情報の緯度経度をエンコードして Base32 文字列�
 
 Geohash は緯度経度から計算されますが、そのアルゴリズムの内部で一部の情報を落としているので、Geohash が示す位置情報は特定の点ではなく、制度に応じた長方形領域です。緯度経度の桁数を詳しく与えれば与えるほど、Geohash 文字列の精度（桁数）が上がります。
 
-Geohash の精度（桁数）と、その Geohash が与える長方形領域の大きさは次のように対応しています。
+地球は球形であるため実際には地点（緯度）によって異なりますが、Geohash の精度（桁数）と、その Geohash が与える赤道上での最大の誤差範囲を表す長方形領域の大きさ（縦：南北方向 [km] x 横：東西方向 [km]）は次のように対応しています。
 
 |  桁数  |  長方形領域  |
 | ---- | ---- |
-|  1  |  5,000km x 5,000km  |
-|  2  |  1,250km x 625km  |
-|  3  |  156km x 156km  |
-|  4  |  39.1km x 19.5km  |
-|  5  |  4.89km x 4.89km  |
-|  6  |  1.22km x 0.61km  |
-|  7  |  153m x 153m  |
-|  8  |  38.2m x 19.1m  |
-|  9  |  4.77m x 4.77m  |
+|  1  |  約 5,000km x 約 5,000km  |
+|  2  |  約 1,250km x 約 625km  |
+|  3  |  約 156km x 約 156km  |
+|  4  |  約 39.1km x 約 19.5km  |
+|  5  |  約 4.89km x 約 4.89km  |
+|  6  |  約 1.22km x 約 0.61km  |
+|  7  |  約 153m x 約 153m  |
+|  8  |  約 38.2m x 約 19.1m  |
+|  9  |  約 4.77m x 約 4.77m  |
 
-6 桁前後の精度が確保できるなら、十分位置情報系のサービスに使用できそうなことが分かります。
+7 桁程度の精度が確保できるなら、十分位置情報系のサービスに使用できそうなことが分かります。
 
 位置情報クエリを行う際、geoflutterfire_plus のパッケージの内部では、この Geohash 文字列に対して `startAt`, `endAt` クエリを行うことで指定した中心地点から指定された半径以内のドキュメントを取得するような実装になっています。
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/e6c1bfa23efb28865f2e6637d152f01188adb1ce/lib/src/geo_collection_reference.dart#L303C10-L316)
 
 ## 基本的な機能や使い方の紹介
 
 この章では、geoflutterfire_plus パッケージの基本的な機能や使い方を紹介します。
 
-説明の目的で型注釈などは冗長に書いている箇所があります。
+説明の目的で型注釈などは冗長に書いています。
 
 ### 緯度経度の取り扱い
 
@@ -126,6 +130,11 @@ final GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
 `withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
 
 ```dart
+// Location クラスの定義。詳細は下記リンクを確認してください。
+class Location {
+  // ... 省略
+}
+
 // 通常通り型付きの CollectionReference を定義する。
 CollectionReference<Location> typedCollectionReference =
     FirebaseFirestore.instance.collection('locations').withConverter<Location>(
@@ -138,9 +147,9 @@ final GeoCollectionReference<Location> typedGeoCollectionReference =
     GeoCollectionReference(typedCollectionReference);
 ```
 
-この場合の `Location` クラスの内容を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
+`Location` クラスの実装内容の例を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
 
-@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/main/example/lib/advanced/entity.dart)
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/e6c1bfa23efb28865f2e6637d152f01188adb1ce/example/lib/advanced/entity.dart#L4)
 
 ### 位置情報データを定義する (`GeoFirePoint`)
 
@@ -263,10 +272,10 @@ Future<void> deleteGeoData() async {
 
 必須のパラメータは以下の通りです。
 
-- 中心位置：`GeoFirePoint` 型 `center`
-- 検出半径 (km)：`double` 型 `radiusInKm`
-- フィールド名：`String` 型 `field`
-- `T` 型オブジェクトから `GeoPoint` インスタンスを作成する関数：`GeoPoint Function(T obj)` 型 `geopointFrom`
+- 中心位置：`center`（`GeoFirePoint` 型）
+- 検出半径 (km)：`radiusInKm`（`double` 型）
+- フィールド名：`field`（`String` 型）
+- `T` 型オブジェクトから `GeoPoint` インスタンスを作成する関数：`geopointFrom`（`GeoPoint Function(T obj)` 型）
 
 最後の `GeoPoint Function(T obj)` 型の `geopointFrom` というパラメータはやや複雑なので説明を加えます。
 
