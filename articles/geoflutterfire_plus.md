@@ -8,7 +8,7 @@ published: true
 
 ## geoflutterfire_plus パッケージ
 
-この記事では、Flutter x Firestore で位置情報クエリがかける pub パッケージである geoflutterfire_plus を紹介し、主な使用方法をまとめたり、サンプルアプリを紹介したりします。
+この記事では、著者が開発・リリースした、Flutter x Firestore で位置情報クエリがかける pub パッケージである geoflutterfire_plus を紹介し、主な使用方法をまとめたり、サンプルアプリを紹介したりします。
 
 @[card](https://pub.dev/packages/geoflutterfire_plus)
 
@@ -33,6 +33,8 @@ published: true
 @[card](https://pub.dev/packages/geoflutterfire)
 
 しかし、このパッケージは記事執筆時点で約 1 年ほどメンテナンスが止まっており、肝心の `cloud_firestore` などの依存パッケージが最新に対応しておらず、開発中のアプリが新しいバージョンの `cloud_firestore` パッケージを使用している場合には、依存関係の解決時にコンフリクトが生じしてしまい、使用することができません。
+
+![geoflutterfire_pubspec.png](/images/articles/geoflutterfire_plus/geoflutterfire_pubspec.png)
 
 依存パッケージを最新にする PR を継続して作成することも検討しましたが、その流れで内部のソースコードを詳しく読んでみると、ソースコードや設計にも根本から修正した方が良いと思われる箇所が多く、しばらくはフォークして自分なりに改善したものを使用していました。その修正がまとまったものになってきたタイミングで、一からパッケージを作り直して公開しようと思ったのが開発のきっかけです。
 
@@ -70,29 +72,31 @@ Geohash は位置情報の緯度経度をエンコードして Base32 文字列�
 
 Geohash は緯度経度から計算されますが、そのアルゴリズムの内部で一部の情報を落としているので、Geohash が示す位置情報は特定の点ではなく、制度に応じた長方形領域です。緯度経度の桁数を詳しく与えれば与えるほど、Geohash 文字列の精度（桁数）が上がります。
 
-Geohash の精度（桁数）と、その Geohash が与える長方形領域の大きさは次のように対応しています。
+地球は球形であるため実際には地点（緯度）によって異なりますが、Geohash の精度（桁数）と、その Geohash が与える赤道上での最大の誤差範囲を表す長方形領域の大きさ（縦：南北方向 [km] x 横：東西方向 [km]）は次のように対応しています。
 
 |  桁数  |  長方形領域  |
 | ---- | ---- |
-|  1  |  5,000km x 5,000km  |
-|  2  |  1,250km x 625km  |
-|  3  |  156km x 156km  |
-|  4  |  39.1km x 19.5km  |
-|  5  |  4.89km x 4.89km  |
-|  6  |  1.22km x 0.61km  |
-|  7  |  153m x 153m  |
-|  8  |  38.2m x 19.1m  |
-|  9  |  4.77m x 4.77m  |
+|  1  |  約 5,000km x 約 5,000km  |
+|  2  |  約 1,250km x 約 625km  |
+|  3  |  約 156km x 約 156km  |
+|  4  |  約 39.1km x 約 19.5km  |
+|  5  |  約 4.89km x 約 4.89km  |
+|  6  |  約 1.22km x 約 0.61km  |
+|  7  |  約 153m x 約 153m  |
+|  8  |  約 38.2m x 約 19.1m  |
+|  9  |  約 4.77m x 約 4.77m  |
 
-6 桁前後の精度が確保できるなら、十分位置情報系のサービスに使用できそうなことが分かります。
+7 桁程度の精度が確保できるなら、十分位置情報系のサービスに使用できそうなことが分かります。
 
 位置情報クエリを行う際、geoflutterfire_plus のパッケージの内部では、この Geohash 文字列に対して `startAt`, `endAt` クエリを行うことで指定した中心地点から指定された半径以内のドキュメントを取得するような実装になっています。
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/e6c1bfa23efb28865f2e6637d152f01188adb1ce/lib/src/geo_collection_reference.dart#L303C10-L316)
 
 ## 基本的な機能や使い方の紹介
 
 この章では、geoflutterfire_plus パッケージの基本的な機能や使い方を紹介します。
 
-説明の目的で型注釈などは冗長に書いている箇所があります。
+説明の目的で型注釈などは冗長に書いています。
 
 ### 緯度経度の取り扱い
 
@@ -126,6 +130,11 @@ final GeoCollectionReference<Map<String, dynamic>> geoCollectionReference =
 `withConverter` を用いて型を付けることにも対応しています。仮に、`Location` というクラスを定義して、`fromDocumentSnapshot` や `toJson` メソッドを定義しているとすると、次のようになります。
 
 ```dart
+// Location クラスの定義。詳細は下記リンクを確認してください。
+class Location {
+  // ... 省略
+}
+
 // 通常通り型付きの CollectionReference を定義する。
 CollectionReference<Location> typedCollectionReference =
     FirebaseFirestore.instance.collection('locations').withConverter<Location>(
@@ -138,9 +147,9 @@ final GeoCollectionReference<Location> typedGeoCollectionReference =
     GeoCollectionReference(typedCollectionReference);
 ```
 
-この場合の `Location` クラスの内容を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
+`Location` クラスの実装内容の例を具体的に確認したい場合は次のファイルの該当箇所を参照してください：
 
-@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/main/example/lib/advanced/entity.dart)
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/blob/e6c1bfa23efb28865f2e6637d152f01188adb1ce/example/lib/advanced/entity.dart#L4)
 
 ### 位置情報データを定義する (`GeoFirePoint`)
 
@@ -263,10 +272,10 @@ Future<void> deleteGeoData() async {
 
 必須のパラメータは以下の通りです。
 
-- 中心位置：`GeoFirePoint` 型 `center`
-- 検出半径 (km)：`double` 型 `radiusInKm`
-- フィールド名：`String` 型 `field`
-- `T` 型オブジェクトから `GeoPoint` インスタンスを作成する関数：`GeoPoint Function(T obj)` 型 `geopointFrom`
+- 中心位置：`center`（`GeoFirePoint` 型）
+- 検出半径 (km)：`radiusInKm`（`double` 型）
+- フィールド名：`field`（`String` 型）
+- `T` 型オブジェクトから `GeoPoint` インスタンスを作成する関数：`geopointFrom`（`GeoPoint Function(T obj)` 型）
 
 最後の `GeoPoint Function(T obj)` 型の `geopointFrom` というパラメータはやや複雑なので説明を加えます。
 
@@ -369,6 +378,211 @@ Future<List<DocumentSnapshot<Map<String, dynamic>>>> fetchVisibleGeoData() async
 ## geoflutterfire パッケージとの対応（移行ガイドとしても）
 
 後日追記します。
+
+## geoflutterfire_plus を用いたサンプルアプリ
+
+この章では、geoflutterfire_plus パッケージと google_maps_flutter パッケージを用いたアプリを作る方法をかんたんに追ってみます。アプリ上に表示した Google Maps 上に geoflutterfire_plus パッケージの機能で取得した位置情報データをリアルタイムに表示していくようなアプリです。
+
+基本的には geoflutterfire_plus リポジトリの example プロジェクトの内容の抜粋なので、詳細は下記リンクで確認することもできます。
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/tree/main/example)
+
+pubspec.yaml に最新バージョンの geoflutterfire_plus パッケージと google_maps_flutter パッケージを追加してください。cloud_firestore や firebase_core も同様です。
+
+```yaml:pubspec.yaml
+dependencies:
+  cloud_firestore: <latest-version-here>
+  firebase_core: <latest-version-here>
+  flutter:
+    sdk: flutter
+  geoflutterfire_plus: <latest-version-here>
+  google_maps_flutter: <latest-version-here>
+```
+
+google_maps_flutter パッケージについては、パッケージの README をよく確認し、[GCP の maps-platform](https://cloud.google.com/maps-platform/) から API キーを取得して、iOS, Android のそれぞれで必要な設定を済ませてください。
+
+@[card](https://pub.dev/packages/google_maps_flutter)
+
+エントリポイント周りは次のとおりです。`Example` という `StatefulWidget` がマップを表示する画面です。
+
+```dart:main.dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const App());
+}
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        sliderTheme: SliderThemeData(
+          overlayShape: SliderComponentShape.noOverlay,
+        ),
+      ),
+      home: const Example(),
+    );
+  }
+}
+```
+
+`State` クラスのメンバ（状態）としては主に
+
+- Google Maps 上のカメラ位置：`_cameraPosition`（`CameraPosition` 型）
+- 検出半径：`_radiusInKm`（`double` 型）
+- 取得された Google Maps 上のマーカ：`markers`（`Set<Marker>` 型）
+
+があります。
+
+カメラ位置（= 位置情報クエリの中心）と検出半径を変化させながら、得られた位置情報データを flutter_google_maps パッケージの `Marker` 型の集合 (`Set`) である `_markers` を更新していき、それを表示するということです。
+
+```dart:main.dart
+class Example extends StatefulWidget {
+  const Example({super.key});
+
+  @override
+  ExampleState createState() => ExampleState();
+}
+
+class ExampleState extends State<Example> {
+  // ... 省略
+
+  /// Google Maps 上のカメラ位置。
+  CameraPosition _cameraPosition = _initialCameraPosition;
+
+  /// 位置情報クエリによる検出半径 (km)。
+  double _radiusInKm = _initialRadiusInKm;
+
+  /// Google Maps 上のマーカ一覧。
+  Set<Marker> _markers = {};
+}
+```
+
+位置情報クエリの `StreamSubscription` を返す関数として、`_geoQuerySubscription` を定義しています。中心位置 (`GeoPoint`) と検出半径 (`double`) を入力すると、`GeoCollectionReference.subscribeWithin` メソッドを `listen` した結果を返します。
+
+`_updateMarkersByDocumentSnapshots` メソッドで、`listen` した結果得られた (`List<DocumentSnapshot>`) から `List<Marker>` を作成し、`_markers` を更新します。
+
+`initState` メソッドで指定した初期位置および初期検出半径で位置情報クエリの購読を開始しします。`dispose` メソッドをオーバーライドして `_subscription` をキャンセルすることも忘れないでください。
+
+```dart:main.dart
+// ... 省略
+
+class ExampleState extends State<Example> {
+  // ... 省略
+
+  /// 位置情報クエリの購読。
+  late StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
+      _subscription;
+  
+  /// 中心位置と検出半径 (km) を与えて、位置情報クエリのリスナーを返す。
+  StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
+      _geoQuerySubscription({
+    required GeoPoint centerGeoPoint,
+    required double radiusInKm,
+  }) =>
+          GeoCollectionReference(collectionReference)
+              .subscribeWithin(
+                center: GeoFirePoint(centerGeoPoint),
+                radiusInKm: radiusInKm,
+                field: 'geo',
+                geopointFrom: (data) => (data['geo']
+                    as Map<String, dynamic>)['geopoint'] as GeoPoint,
+                strictMode: true,
+              )
+              .listen(_updateMarkersByDocumentSnapshots);
+
+  /// 取得した [DocumentSnapshot] で [_marker] を更新する。
+  void _updateMarkersByDocumentSnapshots(
+    List<DocumentSnapshot<Map<String, dynamic>>> documentSnapshots,
+  ) {
+    final markers = <Marker>{};
+    for (final ds in documentSnapshots) {
+      final id = ds.id;
+      final data = ds.data();
+      if (data == null) {
+        continue;
+      }
+      final name = data['name'] as String;
+      final geoPoint =
+          (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint;
+      markers.add(
+        Marker(
+          markerId: MarkerId('(${geoPoint.latitude}, ${geoPoint.longitude})'),
+          position: LatLng(geoPoint.latitude, geoPoint.longitude),
+          infoWindow: InfoWindow(title: name),
+          onTap: () async {
+            // 省略
+          },
+        ),
+      );
+    }
+    setState(() {
+      _markers = markers;
+    });
+  }
+
+  @override
+  void initState() {
+    _subscription = _geoQuerySubscription(
+      centerGeoPoint: GeoPoint(
+        _cameraPosition.target.latitude,
+        _cameraPosition.target.longitude,
+      ),
+      radiusInKm: _radiusInKm,
+    );
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+```
+
+`build` メソッドで、flutter_google_maps パッケージの `GoogleMap` ウィジェットを表示します。
+
+`void Function(CameraPosition)?` 型である `onCameraMove` で、移動したカメラ位置 (`CameraPosition`) が都度得られるので、それを用いて `State` クラスのメンバである `_cameraPosition` や、位置情報クエリの購読である `_subscription` を更新していくことで、リアルタイムで中心位置を変えながら位置情報をリアルタイムで取得していくことができます。
+
+```dart:main.dart
+// ... 省略
+
+class ExampleState extends State<Example> {
+  // ... 省略
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          GoogleMap(
+            // ... 一部のプロパティは省略
+            initialCameraPosition: _initialCameraPosition,
+            markers: _markers,
+            onCameraMove: (cameraPosition) {
+              _cameraPosition = cameraPosition;
+              _subscription = _geoQuerySubscription(
+                centerGeoPoint: GeoPoint(
+                  _cameraPosition.target.latitude,
+                  _cameraPosition.target.longitude,
+                ),
+                radiusInKm: _radiusInKm,
+              );
+            },
+          ),
+          // ... 省略
+        ],
+      ),
+    );
+  }
+}
+```
 
 ## さいごに
 
