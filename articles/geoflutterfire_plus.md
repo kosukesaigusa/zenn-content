@@ -403,6 +403,12 @@ google_maps_flutter パッケージについては、パッケージの README �
 
 @[card](https://pub.dev/packages/google_maps_flutter)
 
+サンプルアプリの位置情報データは、Cloud Firestore のトップレベルの locations コレクションに、次のようなスキーマで保存している前提とします。
+
+前述の位置情報データの追加のセクションの説明の通りに `geo` というフィールドに Geohash 文字列と `GeoPoint` 型の値（`GeoFirePoint.data` 相当）が保存されています（ついでに `name` と `isVisible` というフィールドを追加しました）。
+
+![schema.png](/images/articles/geoflutterfire_plus/schema.png)
+
 エントリポイント周りは次のとおりです。`Example` という `StatefulWidget` がマップを表示する画面です。
 
 ```dart:main.dart
