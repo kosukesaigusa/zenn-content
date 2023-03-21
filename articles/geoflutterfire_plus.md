@@ -546,6 +546,10 @@ class ExampleState extends State<Example> {
 }
 ```
 
+`build` メソッドで、flutter_google_maps パッケージの `GoogleMap` ウィジェットを表示します。
+
+`void Function(CameraPosition)?` 型である `onCameraMove` で、移動したカメラ位置 (`CameraPosition`) が都度得られるので、それを用いて `State` クラスのメンバである `_cameraPosition` や、位置情報クエリの購読である `_subscription` を更新していくことで、リアルタイムで中心位置を変えながら位置情報をリアルタイムで取得していくことができます。
+
 ```dart:main.dart
 // ... 省略
 
