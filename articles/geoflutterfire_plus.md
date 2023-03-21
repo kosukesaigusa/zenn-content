@@ -399,6 +399,187 @@ dependencies:
   google_maps_flutter: <latest-version-here>
 ```
 
+google_maps_flutter パッケージについては、パッケージの README をよく確認し、[GCP の maps-platform](https://cloud.google.com/maps-platform/) から API キーを取得して、iOS, Android のそれぞれで必要な設定を済ませてください。
+
+@[card](https://pub.dev/packages/google_maps_flutter)
+
+エントリポイント周りは次のとおりです。`Example` という `StatefulWidget` がマップを表示する画面です。
+
+```dart:main.dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const App());
+}
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        sliderTheme: SliderThemeData(
+          overlayShape: SliderComponentShape.noOverlay,
+        ),
+      ),
+      home: const Example(),
+    );
+  }
+}
+```
+
+`State` クラスのメンバ（状態）としては主に
+
+- Google Maps 上のカメラ位置：`_cameraPosition`（`CameraPosition` 型）
+- 検出半径：`_radiusInKm`（`double` 型）
+- 取得された Google Maps 上のマーカ：`markers`（`Set<Marker>` 型）
+
+があります。
+
+カメラ位置（= 位置情報クエリの中心）と検出半径を変化させながら、得られた位置情報データを flutter_google_maps パッケージの `Marker` 型の集合 (`Set`) である `_markers` を更新していき、それを表示するということです。
+
+```dart:main.dart
+class Example extends StatefulWidget {
+  const Example({super.key});
+
+  @override
+  ExampleState createState() => ExampleState();
+}
+
+class ExampleState extends State<Example> {
+  // ... 省略
+
+  /// Google Maps 上のカメラ位置。
+  CameraPosition _cameraPosition = _initialCameraPosition;
+
+  /// 位置情報クエリによる検出半径 (km)。
+  double _radiusInKm = _initialRadiusInKm;
+
+  /// Google Maps 上のマーカ一覧。
+  Set<Marker> _markers = {};
+}
+```
+
+位置情報クエリの `StreamSubscription` を返す関数として、`_geoQuerySubscription` を定義しています。中心位置 (`GeoPoint`) と検出半径 (`double`) を入力すると、`GeoCollectionReference.subscribeWithin` メソッドを `listen` した結果を返します。
+
+`_updateMarkersByDocumentSnapshots` メソッドで、`listen` した結果得られた (`List<DocumentSnapshot>`) から `List<Marker>` を作成し、`_markers` を更新します。
+
+`initState` メソッドで指定した初期位置および初期検出半径で位置情報クエリの購読を開始しします。`dispose` メソッドをオーバーライドして `_subscription` をキャンセルすることも忘れないでください。
+
+```dart:main.dart
+// ... 省略
+
+class ExampleState extends State<Example> {
+  // ... 省略
+
+  /// 位置情報クエリの購読。
+  late StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
+      _subscription;
+  
+  /// 中心位置と検出半径 (km) を与えて、位置情報クエリのリスナーを返す。
+  StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
+      _geoQuerySubscription({
+    required GeoPoint centerGeoPoint,
+    required double radiusInKm,
+  }) =>
+          GeoCollectionReference(collectionReference)
+              .subscribeWithin(
+                center: GeoFirePoint(centerGeoPoint),
+                radiusInKm: radiusInKm,
+                field: 'geo',
+                geopointFrom: (data) => (data['geo']
+                    as Map<String, dynamic>)['geopoint'] as GeoPoint,
+                strictMode: true,
+              )
+              .listen(_updateMarkersByDocumentSnapshots);
+
+  /// 取得した [DocumentSnapshot] で [_marker] を更新する。
+  void _updateMarkersByDocumentSnapshots(
+    List<DocumentSnapshot<Map<String, dynamic>>> documentSnapshots,
+  ) {
+    final markers = <Marker>{};
+    for (final ds in documentSnapshots) {
+      final id = ds.id;
+      final data = ds.data();
+      if (data == null) {
+        continue;
+      }
+      final name = data['name'] as String;
+      final geoPoint =
+          (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint;
+      markers.add(
+        Marker(
+          markerId: MarkerId('(${geoPoint.latitude}, ${geoPoint.longitude})'),
+          position: LatLng(geoPoint.latitude, geoPoint.longitude),
+          infoWindow: InfoWindow(title: name),
+          onTap: () async {
+            // 省略
+          },
+        ),
+      );
+    }
+    setState(() {
+      _markers = markers;
+    });
+  }
+
+  @override
+  void initState() {
+    _subscription = _geoQuerySubscription(
+      centerGeoPoint: GeoPoint(
+        _cameraPosition.target.latitude,
+        _cameraPosition.target.longitude,
+      ),
+      radiusInKm: _radiusInKm,
+    );
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+```
+
+```dart:main.dart
+// ... 省略
+
+class ExampleState extends State<Example> {
+  // ... 省略
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          GoogleMap(
+            // ... 一部のプロパティは省略
+            initialCameraPosition: _initialCameraPosition,
+            markers: _markers,
+            onCameraMove: (cameraPosition) {
+              _cameraPosition = cameraPosition;
+              _subscription = _geoQuerySubscription(
+                centerGeoPoint: GeoPoint(
+                  _cameraPosition.target.latitude,
+                  _cameraPosition.target.longitude,
+                ),
+                radiusInKm: _radiusInKm,
+              );
+            },
+          ),
+          // ... 省略
+        ],
+      ),
+    );
+  }
+}
+```
+
 ## さいごに
 
 geoflutterfire_plus パッケージと使い方の紹介をしてきました。パッケージに更新があり次第更新していく予定です。
