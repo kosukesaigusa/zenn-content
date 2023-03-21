@@ -379,6 +379,26 @@ Future<List<DocumentSnapshot<Map<String, dynamic>>>> fetchVisibleGeoData() async
 
 後日追記します。
 
+## geoflutterfire_plus を用いたサンプルアプリ
+
+この章では、geoflutterfire_plus パッケージと google_maps_flutter パッケージを用いたアプリを作る方法をかんたんに追ってみます。アプリ上に表示した Google Maps 上に geoflutterfire_plus パッケージの機能で取得した位置情報データをリアルタイムに表示していくようなアプリです。
+
+基本的には geoflutterfire_plus リポジトリの example プロジェクトの内容の抜粋なので、詳細は下記リンクで確認することもできます。
+
+@[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/tree/main/example)
+
+pubspec.yaml に最新バージョンの geoflutterfire_plus パッケージと google_maps_flutter パッケージを追加してください。cloud_firestore や firebase_core も同様です。
+
+```yaml:pubspec.yaml
+dependencies:
+  cloud_firestore: <latest-version-here>
+  firebase_core: <latest-version-here>
+  flutter:
+    sdk: flutter
+  geoflutterfire_plus: <latest-version-here>
+  google_maps_flutter: <latest-version-here>
+```
+
 ## さいごに
 
 geoflutterfire_plus パッケージと使い方の紹介をしてきました。パッケージに更新があり次第更新していく予定です。
