@@ -387,7 +387,7 @@ Future<List<DocumentSnapshot<Map<String, dynamic>>>> fetchVisibleGeoData() async
 
 @[card](https://github.com/KosukeSaigusa/geoflutterfire_plus/tree/main/example)
 
-pubspec.yaml に最新バージョンの geoflutterfire_plus パッケージと google_maps_flutter パッケージを追加してください。cloud_firestore や firebase_core も同様です。
+pubspec.yaml に最新バージョンの geoflutterfire_plus パッケージと google_maps_flutter パッケージを追加してください。cloud_firestore, firebase_core, rxdart も同様です。
 
 ```yaml:pubspec.yaml
 dependencies:
@@ -397,6 +397,7 @@ dependencies:
     sdk: flutter
   geoflutterfire_plus: <latest-version-here>
   google_maps_flutter: <latest-version-here>
+  rxdart: <latest-version-here>
 ```
 
 google_maps_flutter パッケージについては、パッケージの README をよく確認し、[GCP の maps-platform](https://cloud.google.com/maps-platform/) から API キーを取得して、iOS, Android のそれぞれで必要な設定を済ませてください。
@@ -439,15 +440,33 @@ class App extends StatelessWidget {
 
 `State` クラスのメンバ（状態）としては主に
 
-- Google Maps 上のカメラ位置：`_cameraPosition`（`CameraPosition` 型）
-- 検出半径：`_radiusInKm`（`double` 型）
-- 取得された Google Maps 上のマーカ：`markers`（`Set<Marker>` 型）
+- 取得された Google Maps 上のマーカ：`_markers`（`Set<Marker>` 型）
+- クエリ条件の購読と保持を行うオブジェクト：`_geoQueryCondition`（`BehaviorSubject<_GeoQueryCondition>` 型）
+  - `_GeoQueryCondition` 型は下記の条件を内包しています
+    - 検出半径：`_radiusInKm`（`double` 型）
+    - Google Maps 上のカメラ位置：`_cameraPosition`（`CameraPosition` 型）
+- クエリ結果の購読：`_stream`（`Stream<List<DocumentSnapshot<Map<String, dynamic>>>>` 型）
 
 があります。
 
-カメラ位置（= 位置情報クエリの中心）と検出半径を変化させながら、得られた位置情報データを flutter_google_maps パッケージの `Marker` 型の集合 (`Set`) である `_markers` を更新していき、それを表示するということです。
+検出半径 (km) とカメラ位置（= 位置情報クエリの中心）を変化させながら、それをクエリ条件 (`_GeoQueryCondition`) `BehaviorSubject` に流し、リアルタイムで反映されるその結果として得られた位置情報データを flutter_google_maps パッケージの `Marker` 型の集合 (`Set`) である `_markers` として更新していき、それを表示するということです。
+
+`_geoQueryCondition.switchMap` によって、最新検出半径や中心位置の検索条件による位置情報クエリの `Stream` を作成しますあ。`GeoCollectionReference.subscribeWithin` メソッドの使い方は上で説明した通りです。
+
+`dispose` メソッドをオーバーライドして `_geoQueryCondition` をクローズすることも忘れないでください。
 
 ```dart:main.dart
+/// 検出半径とカメラ位置をクエリ条件として一緒に取り扱うためのクラス。
+class _GeoQueryCondition {
+  _GeoQueryCondition({
+    required this.radiusInKm,
+    required this.cameraPosition,
+  });
+
+  final double radiusInKm;
+  final CameraPosition cameraPosition;
+}
+
 class Example extends StatefulWidget {
   const Example({super.key});
 
@@ -456,97 +475,39 @@ class Example extends StatefulWidget {
 }
 
 class ExampleState extends State<Example> {
-  // ... 省略
-
-  /// Google Maps 上のカメラ位置。
-  CameraPosition _cameraPosition = _initialCameraPosition;
-
-  /// 位置情報クエリによる検出半径 (km)。
-  double _radiusInKm = _initialRadiusInKm;
-
   /// Google Maps 上のマーカ一覧。
   Set<Marker> _markers = {};
-}
-```
 
-位置情報クエリの `StreamSubscription` を返す関数として、`_geoQuerySubscription` を定義しています。中心位置 (`GeoPoint`) と検出半径 (`double`) を入力すると、`GeoCollectionReference.subscribeWithin` メソッドを `listen` した結果を返します。
+  /// クエリ条件を購読しつつ、最新のクエリ条件を保持するための [BehaviorSubject]。
+  final _geoQueryCondition = BehaviorSubject<_GeoQueryCondition>.seeded(
+    _GeoQueryCondition(
+      radiusInKm: _initialRadiusInKm,
+      cameraPosition: _initialCameraPosition,
+    ),
+  );
 
-`_updateMarkersByDocumentSnapshots` メソッドで、`listen` した結果得られた (`List<DocumentSnapshot>`) から `List<Marker>` を作成し、`_markers` を更新します。
-
-`initState` メソッドで指定した初期位置および初期検出半径で位置情報クエリの購読を開始しします。`dispose` メソッドをオーバーライドして `_subscription` をキャンセルすることも忘れないでください。
-
-```dart:main.dart
-// ... 省略
-
-class ExampleState extends State<Example> {
-  // ... 省略
-
-  /// 位置情報クエリの購読。
-  late StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
-      _subscription;
-  
-  /// 中心位置と検出半径 (km) を与えて、位置情報クエリのリスナーを返す。
-  StreamSubscription<List<DocumentSnapshot<Map<String, dynamic>>>>
-      _geoQuerySubscription({
-    required GeoPoint centerGeoPoint,
-    required double radiusInKm,
-  }) =>
-          GeoCollectionReference(collectionReference)
-              .subscribeWithin(
-                center: GeoFirePoint(centerGeoPoint),
-                radiusInKm: radiusInKm,
-                field: 'geo',
-                geopointFrom: (data) => (data['geo']
-                    as Map<String, dynamic>)['geopoint'] as GeoPoint,
-                strictMode: true,
-              )
-              .listen(_updateMarkersByDocumentSnapshots);
-
-  /// 取得した [DocumentSnapshot] で [_marker] を更新する。
-  void _updateMarkersByDocumentSnapshots(
-    List<DocumentSnapshot<Map<String, dynamic>>> documentSnapshots,
-  ) {
-    final markers = <Marker>{};
-    for (final ds in documentSnapshots) {
-      final id = ds.id;
-      final data = ds.data();
-      if (data == null) {
-        continue;
-      }
-      final name = data['name'] as String;
-      final geoPoint =
-          (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint;
-      markers.add(
-        Marker(
-          markerId: MarkerId('(${geoPoint.latitude}, ${geoPoint.longitude})'),
-          position: LatLng(geoPoint.latitude, geoPoint.longitude),
-          infoWindow: InfoWindow(title: name),
-          onTap: () async {
-            // 省略
-          },
+  /// クエリ結果の購読。this._geoQueryCondition を使用したいので late final で定義する。
+  late final Stream<List<DocumentSnapshot<Map<String, dynamic>>>> _stream =
+      _geoQueryCondition.switchMap(
+    (geoQueryCondition) =>
+        GeoCollectionReference(_collectionReference).subscribeWithin(
+      center: GeoFirePoint(
+        GeoPoint(
+          _cameraPosition.target.latitude,
+          _cameraPosition.target.longitude,
         ),
-      );
-    }
-    setState(() {
-      _markers = markers;
-    });
-  }
-
-  @override
-  void initState() {
-    _subscription = _geoQuerySubscription(
-      centerGeoPoint: GeoPoint(
-        _cameraPosition.target.latitude,
-        _cameraPosition.target.longitude,
       ),
-      radiusInKm: _radiusInKm,
-    );
-    super.initState();
-  }
+      radiusInKm: geoQueryCondition.radiusInKm,
+      field: 'geo',
+      geopointFrom: (data) =>
+          (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint,
+      strictMode: true,
+    ),
+  );
 
   @override
   void dispose() {
-    _subscription.cancel();
+    _geoQueryCondition.close();
     super.dispose();
   }
 }
@@ -554,7 +515,11 @@ class ExampleState extends State<Example> {
 
 `build` メソッドで、flutter_google_maps パッケージの `GoogleMap` ウィジェットを表示します。
 
-`void Function(CameraPosition)?` 型である `onCameraMove` で、移動したカメラ位置 (`CameraPosition`) が都度得られるので、それを用いて `State` クラスのメンバである `_cameraPosition` や、位置情報クエリの購読である `_subscription` を更新していくことで、リアルタイムで中心位置を変えながら位置情報をリアルタイムで取得していくことができます。
+`void Function(GoogleMapController)?` 型である `onMapCreated` でクエリ結果である `_stream` の購読を開始し、新しいクエリ結果を得るたびに `_updateMarkersByDocumentSnapshots` メソッドでマーカ一覧である `_markers` を更新して `setState` します。
+
+`void Function(CameraPosition)?` 型である `onCameraMove` では、移動したカメラ位置 (`CameraPosition`) が都度得られるので、それを `_geoQueryCondition.add` して新しいクエリ条件として `BehaviorSubject` に流します。
+
+こうすることで、リアルタイムで中心位置を変えながら位置情報をリアルタイムで取得していくことができます。
 
 ```dart:main.dart
 // ... 省略
@@ -570,15 +535,15 @@ class ExampleState extends State<Example> {
           GoogleMap(
             // ... 一部のプロパティは省略
             initialCameraPosition: _initialCameraPosition,
+            onMapCreated: (_) =>
+                _stream.listen(_updateMarkersByDocumentSnapshots),
             markers: _markers,
             onCameraMove: (cameraPosition) {
-              _cameraPosition = cameraPosition;
-              _subscription = _geoQuerySubscription(
-                centerGeoPoint: GeoPoint(
-                  _cameraPosition.target.latitude,
-                  _cameraPosition.target.longitude,
+              _geoQueryCondition.add(
+                _GeoQueryCondition(
+                  radiusInKm: _radiusInKm,
+                  cameraPosition: cameraPosition,
                 ),
-                radiusInKm: _radiusInKm,
               );
             },
           ),
@@ -587,6 +552,58 @@ class ExampleState extends State<Example> {
       ),
     );
   }
+
+  /// Updates [_markers] by fetched geo [DocumentSnapshot]s.
+  void _updateMarkersByDocumentSnapshots(
+    List<DocumentSnapshot<Map<String, dynamic>>> documentSnapshots,
+  ) {
+    final markers = <Marker>{};
+    for (final ds in documentSnapshots) {
+      final id = ds.id;
+      final data = ds.data();
+      if (data == null) {
+        continue;
+      }
+      final name = data['name'] as String;
+      final geoPoint =
+          (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint;
+      markers.add(_createMarker(id: id, name: name, geoPoint: geoPoint));
+    }
+    setState(() {
+      _markers = markers;
+    });
+  }
+
+  /// Creates a [Marker] by fetched geo location.
+  Marker _createMarker({
+    required String id,
+    required String name,
+    required GeoPoint geoPoint,
+  }) =>
+      Marker(
+        markerId: MarkerId('(${geoPoint.latitude}, ${geoPoint.longitude})'),
+        position: LatLng(geoPoint.latitude, geoPoint.longitude),
+        infoWindow: InfoWindow(title: name),
+        onTap: () {/** 省略 */},
+      );
+}
+```
+
+検出半径を更新したい場合にも、次のようなメソッドがコールされるようにすれば良いでしょう。
+
+```dart:main.dart
+// ... 省略
+
+class ExampleState extends State<Example> {
+  // ... 省略
+
+  /// 検出半径を更新する。
+  void updateRadius(double radius) => _geoQueryCondition.add(
+    _GeoQueryCondition(
+      radiusInKm: value,
+      cameraPosition: _cameraPosition,
+    ),
+  );
 }
 ```
 
