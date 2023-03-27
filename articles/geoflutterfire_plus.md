@@ -451,7 +451,7 @@ class App extends StatelessWidget {
 
 検出半径 (km) とカメラ位置（= 位置情報クエリの中心）を変化させながら、それをクエリ条件 (`_GeoQueryCondition`) `BehaviorSubject` に流し、リアルタイムで反映されるその結果として得られた位置情報データを flutter_google_maps パッケージの `Marker` 型の集合 (`Set`) である `_markers` として更新していき、それを表示するということです。
 
-`_geoQueryCondition.switchMap` によって、最新検出半径や中心位置の検索条件による位置情報クエリの `Stream` を作成しますあ。`GeoCollectionReference.subscribeWithin` メソッドの使い方は上で説明した通りです。
+`_geoQueryCondition.switchMap` によって、最新検出半径や中心位置の検索条件による位置情報クエリの `Stream` を作成します。`GeoCollectionReference.subscribeWithin` メソッドの使い方は上で説明した通りです。
 
 `dispose` メソッドをオーバーライドして `_geoQueryCondition` をクローズすることも忘れないでください。
 
