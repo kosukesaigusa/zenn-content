@@ -264,7 +264,7 @@ Future<void> deleteGeoData() async {
 それらの保存済みの位置情報データの中から、指定した中心位置 (`center`) から指定した半径 R [km] (`radiusInIKm`) 以内に位置するドキュメントを取得する方法として、geoflutterfire_plus パッケージでは次の 2 つのメソッドを提供しています。
 
 - `Future` 型で都度取得するメソッド：`GeoCollectionReference.fetchWithin`
-- `Stream` 方で購読するメソッド：`GeoCollectionReference.subscribeWithin`
+- `Stream` 型で購読するメソッド：`GeoCollectionReference.subscribeWithin`
 
 #### 都度取得する (`Future`)
 
