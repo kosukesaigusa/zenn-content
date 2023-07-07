@@ -14,6 +14,8 @@ published: false
 
 カスタムトークンによる、Firebase Authentication と LINE ログインの連携について、サンプルコードと一緒に解説します。
 
+@[card](https://github.com/KosukeSaigusa/firebase-auth-line-sign-in)
+
 ## Firebase Authentication のカスタムトークン認証について
 
 はじめに、Firebase Authentication のカスタムトークンについての公式ドキュメントを掲載します。詳細はこちらをご確認ください。
@@ -220,7 +222,6 @@ const verifyAccessToken = async (accessToken: string): Promise<void> => {
 
     const channelId = response.data.client_id
     if (channelId !== process.env.LINE_CHANNEL_ID) {
-        console.error(`channelId: ${channelId}, process.env.LINE_CHANNEL_ID: ${process.env.LINE_CHANNEL_ID}`)
         throw new Error(`LINE Login チャネル ID が正しくありません。`)
     }
 
@@ -296,3 +297,7 @@ const setAppUserDocument = async ({
 クライアントアプリは Flutter で、バックエンドサーバは Firebase Functions のコーラブル関数で実装する例を示しました。
 
 今後の展望として、バックエンドサーバの実装はそれほど複雑ではありませんが、Firebase Extensions の実装・公開の仕方を学んで、Firebase Extensions として公開することができると良いなと考えています。
+
+サンプルコードのリポジトリはこちらです：
+
+@[card](https://github.com/KosukeSaigusa/firebase-auth-line-sign-in)
