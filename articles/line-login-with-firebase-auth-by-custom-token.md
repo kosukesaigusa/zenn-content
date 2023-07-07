@@ -71,3 +71,28 @@ Firebase Authentication と LINE ログインの連携にあたり、必要と�
 
 以下では、LINE のログインチャネルの設定が LINE Developers コンソール上で済んだことを前提に話を進めます。
 
+## 実装方針
+
+実装方針と処理の流れは次の通りです。
+
+1. クライアントアプリで LINE ログインし、アクセストークンを取得する（今回は Flutter をクライアントアプリとし、公式からリリースされている [flutter_line_sdk](https://pub.dev/packages/flutter_line_sdk) というパッケージを使用します）
+2. アクセストークンをバックエンドサーバ（今回は Firebase Functions の onCall を使用します）に送信する
+3. バックエンドサーバで、アクセストークンの検証を行う
+4. 検証済みのアクセストークンを使用して、LINE のプロフィール情報（LINE のユーザー ID を含む）を取得する
+5. 得られた LINE のユーザー ID を用いて、カスタムトークンを作成し、クライアントアプリにレスポンスする
+6. クライアントアプリで、カスタムトークンを用いてログインする
+
+下記のドキュメント「アプリとサーバーの間で安全なログインプロセスを構築する」に記載されている通り、クライアントからバックエンドサーバに送信して良いのは、ユーザー ID ではなくアクセストークンであることに注意してください。
+
+@[card](https://developers.line.biz/ja/docs/line-login/secure-login-process/)
+
+脆弱性を伴うプロセスの例が公式ドキュメントに図示されています。
+
+![脆弱性を伴うプロセス](/images/articles/line-login-with-firebase-auth-by-custom-token/flow-vulnerability.png)
+
+安全な方法は下図の通りです。
+
+![安全な方法](/images/articles/line-login-with-firebase-auth-by-custom-token/flow-secure.png)
+
+前述のセキュリティチェックリストを確認し、上の安全な方法の図に従いながら実装を進めます。
+
