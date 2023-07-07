@@ -49,3 +49,25 @@ const createCustomToken = async (uid: string): Promise<void> => {
 
 よって、LINE ログインと連携する際には、`uid` として、LINE のユーザー ID を指定すると良いでしょう。
 
+## LINE ログインについて
+
+LIN Eログイン APIリファレンスについての公式ドキュメントを掲載します。詳細はこちらをご確認ください。
+
+@[card](https://developers.line.biz/ja/reference/line-login/)
+
+LINE ログインを組み込んだアプリを実装する際のセキュリティチェックリストも公式のドキュメントがあるので必ずご確認ください。
+
+@[card](https://developers.line.biz/ja/docs/line-login/security-checklist/)
+
+Firebase Authentication と LINE ログインの連携にあたり、必要となる各 LINE API については「実装方針」の章で説明します。
+
+また、LINE ログインを使用するには、LINE Developers コンソールからプロバイダや LINE ログインチャネルの設定が必要です。
+
+@[card](https://developers.line.biz/console/)
+
+下記の公式記事（「LINEログインを始めよう」）に必要な設定内容が書かれています。
+
+@[card](https://developers.line.biz/ja/docs/line-login/getting-started/#page-title)
+
+以下では、LINE のログインチャネルの設定が LINE Developers コンソール上で済んだことを前提に話を進めます。
+
