@@ -289,3 +289,10 @@ const setAppUserDocument = async ({
 }
 ```
 
+## おわりに
+
+この記事では、LINE ログインの公式ドキュメントに従いながら、カスタムトークンを用いて Firebase Authentication と LINE ログインを連携する方法について説明しました。
+
+クライアントアプリは Flutter で、バックエンドサーバは Firebase Functions のコーラブル関数で実装する例を示しました。
+
+今後の展望として、バックエンドサーバの実装はそれほど複雑ではありませんが、Firebase Extensions の実装・公開の仕方を学んで、Firebase Extensions として公開することができると良いなと考えています。
