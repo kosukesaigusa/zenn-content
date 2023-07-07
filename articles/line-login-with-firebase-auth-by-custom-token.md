@@ -31,7 +31,7 @@ Firebase Authentication は様々な認証プロバイダをネイティブに�
 
 Firebase Authentication のカスタムトークン認証は、Firebase Authentication がネイティブにサポートしていない認証プロバイダと Firebase Authentication を連携するために使用することができます。たとえば自社の認証システムや、今回取り上げる LINE ログインを使用する場合などが該当します。
 
-基本的な使い方は、下記の通りです。
+基本的な使い方は下記の通りです。
 
 - 第 1 引数（必須）：認証中のユーザーまたはデバイスを一意に識別できる ID
 - 第 2 引数（任意）：追加のカスタムクレーム
@@ -51,7 +51,7 @@ const createCustomToken = async (uid: string): Promise<void> => {
 
 ## LINE ログインについて
 
-LIN Eログイン APIリファレンスについての公式ドキュメントを掲載します。詳細はこちらをご確認ください。
+LINE ログイン APIリファレンスについての公式ドキュメントを掲載します。詳細はこちらをご確認ください。
 
 @[card](https://developers.line.biz/ja/reference/line-login/)
 
@@ -65,7 +65,7 @@ Firebase Authentication と LINE ログインの連携にあたり、必要と�
 
 @[card](https://developers.line.biz/console/)
 
-下記の公式記事（「LINEログインを始めよう」）に必要な設定内容が書かれています。
+下記の公式記事「LINEログインを始めよう」に必要な設定内容が書かれています。
 
 @[card](https://developers.line.biz/ja/docs/line-login/getting-started/#page-title)
 
@@ -75,7 +75,7 @@ Firebase Authentication と LINE ログインの連携にあたり、必要と�
 
 実装方針と処理の流れは次の通りです。
 
-1. クライアントアプリで LINE ログインし、アクセストークンを取得する（今回は Flutter をクライアントアプリとし、公式からリリースされている [flutter_line_sdk](https://pub.dev/packages/flutter_line_sdk) というパッケージを使用します）
+1. クライアントアプリで LINE ログインし、アクセストークンを取得する
 2. アクセストークンをバックエンドサーバ（今回は Firebase Functions の onCall を使用します）に送信する
 3. バックエンドサーバで、アクセストークンの検証を行う
 4. 検証済みのアクセストークンを使用して、LINE のプロフィール情報（LINE のユーザー ID を含む）を取得する
