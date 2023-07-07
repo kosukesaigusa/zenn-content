@@ -102,7 +102,7 @@ Firebase Authentication と LINE ログインの連携にあたり、必要と�
 
 ### クライアントアプリの実装
 
-今回は Flutter アプリをクライアントアプリと、かんたんな説明に留めます。
+今回はクライアントアプリを Flutter アプリとし、かんたんな説明に留めます。
 
 Flutter アプリで LINE ログインをするために、公式からリリースされている [flutter_line_sdk](https://pub.dev/packages/flutter_line_sdk) というパッケージを使用します。セットアップ方法の詳細などはパッケージの README を確認してください。
 
@@ -127,9 +127,9 @@ void main() {
 LINE SDK を用いて LINE ログインを行い、得られたアクセストークンを Firebase Functions のバックエンドサーバに送ることでカスタムトークンをレスポンスとして受け取り、それを用いて Firebase Authentication にサインインするための処理は次の通りです。
 
 ```dart
-Future<void> signInWithLine() async {
-  // LineSDK の login メソッドをコールする
-  final loginResult = await LineSDK.instance.login(scopes: ['profile', 'openid', 'email'])
+Future<void> signInWithLINE() async {
+  // LineSDK の login メソッドをコールする。
+  final loginResult = await LineSDK.instance.login();
 
   // 得られる LoginResult 型の値にアクセストークン文字列が入っている。
   final accessToken = loginResult.accessToken.data['access_token'] as String;
