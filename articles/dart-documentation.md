@@ -4,6 +4,8 @@ emoji: "📝"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter"]
 published: true
+published_at: 2023-12-06 00:00
+publication_name: team_soda
 ---
 
 ## ＼[スニダンを開発している SODA inc.の Advent Calendar](https://qiita.com/advent-calendar/2023/soda-inc) 7 日目の記事です!!!／
