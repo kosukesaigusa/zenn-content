@@ -356,6 +356,8 @@ doc comment 内に角括弧 `[]` で囲んだ内容は、当該スコープか�
 >
 > Many people don’t know what “i.e.”, “e.g.” and “et al.” mean. That acronym that you’re sure everyone in your field knows may not be as widely known as you think.
 
+「例」を意味する "e.g." などは書きがちですが、省略する必要がないものは省略することなく素直に書きましょう。
+
 ### Markdown 記法で書こう
 
 これまでに挙げた例でも既にそのようにしていましたが、doc comment は Markdown 記法に対応しています。
