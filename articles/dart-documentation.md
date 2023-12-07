@@ -307,7 +307,6 @@ bool get canResize => ...
 /// 現在モーダルがユーザーに表示されているかどうか。
 bool isVisible;
 
-/// Whether the modal should confirm the user's intent on navigation.
 /// 画面遷移を行う際に、ユーザーの意図を確認すべきかどうか。
 bool get shouldConfirm => ...
 
