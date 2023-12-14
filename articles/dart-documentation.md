@@ -59,7 +59,7 @@ doc comment は `///` ではじめます。ただの comment とは全く質の�
 
 たとえば皆さんのエディタや IDE で、あるクラスや関数にカーソルを合わせると下記のような吹き出しが現れます。
 
-![doc comment](/images/articles/dart-documentation.dart/doc_comment.png)
+![doc comment](/images/articles/dart-documentation/doc_comment.png)
 
 上記は `StatelessWidget` にカーソルを当てた際に現れる文章ですが、これがまさに doc comment です。
 
