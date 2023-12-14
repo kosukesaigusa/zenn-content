@@ -2,7 +2,7 @@
 title: "【開発中】flutterfire_gen パッケージについて"
 emoji: "🎅"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["Dart", "Flutter", "Cloud Firestore", "Firebase"]
+topics: ["Dart", "Flutter", "Firebase", "CloudFirestore"]
 published: true
 published_at: 2023-12-15 00:00
 ---
@@ -241,7 +241,7 @@ final DateTime? createdAt;
 final DateTime? updatedAt;
 ```
 
-### Run the generator
+### flutterfire_gen でコードを生成する
 
 コード生成を実行するためには下記のコマンドを実行してください。
 
@@ -258,7 +258,7 @@ import 'package:flutterfire_gen_annotation/flutterfire_gen_annotation.dart';
 part 'todo.flutterfire_gen.dart';
 ```
 
-### Use generated Query class
+### 生成された `Query` クラスを利用する
 
 上記の `@FirestoreDocument` アノテーションを施した `Todo` クラスに対してコード生成を行うと、生成結果に `TodoQuery` というクラスが含まれています。`TodoQuery` には
 
@@ -380,7 +380,7 @@ Future<void> updateCompletionStatus({
 
 ここでも create と同様に、`updatedAt` には内部で自動で `FieldValue.serverTimestamp()` が適用されています。
 
-### Advanced
+### 発展
 
 #### JsonConverter
 
