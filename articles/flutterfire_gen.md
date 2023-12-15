@@ -11,7 +11,7 @@ published_at: 2023-12-15 00:00
 
 flutterfire_gen は、私が開発をしている Flutter の Cloud Firestore のためのコード生成パッケージです。
 
-記事執筆時点の最新バージョンは `0.2.0-dev.4` で、pub.dev にも publish はしていますが unlisted の状態にしています。
+記事執筆時点の最新バージョンは `0.2.0-dev.5` で、pub.dev にも publish はしていますが unlisted の状態にしています。
 
 https://github.com/kosukesaigusa/flutterfire_gen
 
@@ -95,7 +95,7 @@ dev_dependencies:
   build_runner: latest
 
   # The code generator.
-  flutterfire_gen: ^0.2.0-dev.4
+  flutterfire_gen: ^0.2.0-dev.5
 ```
 
 - [flutterfire_gen](https://pub.dev/packages/flutterfire_gen)
