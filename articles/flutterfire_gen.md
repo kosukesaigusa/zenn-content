@@ -1,5 +1,5 @@
 ---
-title: "【開発中】flutterfire_gen パッケージについて"
+title: "flutterfire_gen パッケージについて"
 emoji: "🎅"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter", "Firebase", "CloudFirestore"]
@@ -11,11 +11,21 @@ published_at: 2023-12-15 00:00
 
 flutterfire_gen は、私が開発をしている Flutter の Cloud Firestore のためのコード生成パッケージです。
 
-記事執筆時点の最新バージョンは `0.2.0-dev.5` で、pub.dev にも publish はしていますが unlisted の状態にしています。
-
 https://github.com/kosukesaigusa/flutterfire_gen
 
-まだまだ開発途中ですが、
+pub.dev にも publish はしていますが unlisted の状態にしています。最新バージョンはこちら：
+
+https://pub.dev/packages/flutterfire_gen
+
+からご確認ください。
+
+関連パッケージはこちらです：
+
+https://pub.dev/packages/flutterfire_gen_annotation
+
+https://pub.dev/packages/flutterfire_gen_utils
+
+開発途中ですが、
 
 - 私の個人のプロジェクトのアプリ開発では十分使用できるようになってきていること
 - 2023 年 9 月に行われた東京 Flutter ハッカソンでも活用することで、素早い実装と、初めて一緒に開発するチームメンバーにとっても分かりやすい開発体験を可能にして、優勝することができたこと
@@ -82,10 +92,10 @@ dependencies:
   firebase_core: latest
 
   # A package containing annotations for flutterfire_gen.
-  flutterfire_gen_annotation: ^0.2.0-dev.1
+  flutterfire_gen_annotation: latest
 
   # A package containing utility annotations for flutterfire_gen.
-  flutterfire_gen_utils: ^0.2.0-dev.1
+  flutterfire_gen_utils: latest
 
   # Optional. Will be necessary if you use JsonConverter.
   json_annotation: latest
@@ -95,12 +105,8 @@ dev_dependencies:
   build_runner: latest
 
   # The code generator.
-  flutterfire_gen: ^0.2.0-dev.5
+  flutterfire_gen: latest
 ```
-
-- [flutterfire_gen](https://pub.dev/packages/flutterfire_gen)
-- [flutterfire_gen_annotation](https://pub.dev/packages/flutterfire_gen_annotation)
-- [flutterfire_gen_utils](https://pub.dev/packages/flutterfire_gen_utils)
 
 の 3 つは flutterfire_gen によるコード生成とそれに関わる機能（アノテーションや機能の拡張）を提供するパッケージです。
 
@@ -381,6 +387,51 @@ Future<void> updateCompletionStatus({
 ここでも create と同様に、`updatedAt` には内部で自動で `FieldValue.serverTimestamp()` が適用されています。
 
 ### 発展
+
+#### スキーマ定義のクラス名や生成コードのクラス名をカスタマイズする
+
+上記までの例ではスキーマ定義を `Todo` というクラス名で行い、read, create, update, delete 操作のためのクラスの接頭辞として、それぞれ `Read`, `Create`, `Update`, `Delete` が付されたものが生成されるようになっていました。
+
+が、
+
+- `Todo` という最もそれらしいクラス名をスキーマ定義のために使用してしまうため、他で使用できないこと
+- `ReadTodo`, `CreateTodo`, `UpdateTodo`, `DeleteTodo` のようなクラス名を強制されずにカスタマイズしたいケースもあること
+
+に対応するために、`build.yaml` で下記のようにすることで、スキーマ定義のクラス名と生成されるクラス名を一律でカスタマイズできるようになっています。
+
+```yaml
+targets:
+  $default:
+    builders:
+      flutterfire_gen:
+        options:
+          schema_definition_class_prefix: "_$" # Defaults to ""
+          read_class_prefix: "" # Defaults to "Read"
+          create_class_prefix: "Create" # Defaults to "Create"
+          update_class_prefix: "Update" # Defaults to "Update"
+          delete_class_prefix: "Delete" # Defaults to "Delete"
+          read_class_suffix: "Dto" # Defaults to ""
+          create_class_suffix: "Data" # Defaults to ""
+          update_class_suffix: "Interface" # Defaults to ""
+          delete_class_suffix: "EtCetera" # Defaults to ""
+```
+
+生成後のコードの接頭辞や接尾辞は `@FirestoreDocument` アノテーションで個別に設定することもできます。
+
+```dart
+@FirestoreDocument(
+  path: 'todos/{todoId}',
+  readClassPrefix: '',
+  createClassPrefix: 'Create',
+  updateClassPrefix: 'Update',
+  deleteClassPrefix: 'Delete',
+  readClassSuffix: 'Dto',
+  createClassSuffix: 'Data',
+  updateClassSuffix: 'Interface',
+  deleteClassSuffix: 'EtCetera',
+)
+class _$Todo { /** 省略 */ }
+```
 
 #### JsonConverter
 
@@ -680,11 +731,11 @@ class TodoList extends _$TodoList {
 
 flutterfire_gen の直近の展望・課題としては以下のようなものを考えています。
 
-- 生成されるコードやアノテーションのより良いインターフェースを模索する
-  - 例：現状はスキーマ定義専用のクラスとして `Todo` という名前をに使用して、そこに `Read`, `Create`, `Update` のような接頭辞を書くインターフェースにつけているので、もっともぴったりな名前である `Todo` が使えないという考え方もある
-- パッケージ内部の doc comment を充実させる（現状はまだまだ適当です）
+- ~~生成されるコードやアノテーションのより良いインターフェースを模索する~~ → 対応しました
+  - ~~例：現状はスキーマ定義専用のクラスとして `Todo` という名前をに使用して、そこに `Read`, `Create`, `Update` のような接頭辞を書くインターフェースにつけているので、もっともぴったりな名前である `Todo` が使えない~~
+- パッケージ内部の doc comment を充実させる
 - 生成ロジックのユニットテストを強固に網羅的に書く
-- バッチ書き込みに対応したメソッドも生成する
+- ~~バッチ書き込みに対応したメソッドも生成する~~ → 対応しました
 - 最近公開された [dart_firebase_admin](https://pub.dev/packages/firebase_admin) 向けのコードも生成できるようにする
 - ...など
 
