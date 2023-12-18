@@ -565,6 +565,11 @@ https://pub.dev/packages/riverpod_generator
 UI については GIF を見るだけで十分察することができる通り、特に説明することはありませんが、このようです：
 
 ```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'todo.dart';
+
 class TodoListPage extends ConsumerWidget {
   const TodoListPage({super.key});
 
@@ -596,16 +601,11 @@ class TodoListPage extends ConsumerWidget {
                           todoId: todo.todoId,
                           isCompleted: value,
                         );
-                    ref.invalidate(todoListProvider);
                   },
                 ),
                 trailing: IconButton(
-                  onPressed: () async {
-                    await ref
-                        .read(todoListProvider.notifier)
-                        .delete(todo.todoId);
-                    ref.invalidate(todoListProvider);
-                  },
+                  onPressed: () =>
+                      ref.read(todoListProvider.notifier).delete(todo.todoId),
                   icon: const Icon(Icons.delete),
                 ),
               );
@@ -613,15 +613,12 @@ class TodoListPage extends ConsumerWidget {
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (err, stack) => Center(child: Text(err.toString())),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await ref
-              .read(todoListProvider.notifier)
-              .addTodo('Todo ${DateTime.now()}');
-          ref.invalidate(todoListProvider);
-        },
+        onPressed: () => ref
+            .read(todoListProvider.notifier)
+            .addTodo('Todo ${DateTime.now()}'),
         child: const Icon(Icons.add),
       ),
     );
@@ -645,29 +642,36 @@ TodoQuery todoQuery(TodoQueryRef _) => TodoQuery();
 @riverpod
 class TodoList extends _$TodoList {
   @override
-  Future<List<ReadTodo>> build() => ref.watch(todoQueryProvider).fetchDocuments(
+  Future<List<Todo>> build() => ref.watch(todoQueryProvider).fetchDocuments(
         queryBuilder: (query) => query.orderBy('createdAt', descending: true),
       );
 
-  Future<DocumentReference<CreateTodo>> addTodo(String title) =>
-      ref.read(todoQueryProvider).add(createTodo: CreateTodo(title: title));
+  Future<void> addTodo(String title) async {
+    await ref.read(todoQueryProvider).add(createTodo: CreateTodo(title: title));
+    ref.invalidateSelf();
+  }
 
   Future<void> updateCompletionStatus({
     required String todoId,
     required bool isCompleted,
-  }) =>
-      ref.read(todoQueryProvider).update(
-            todoId: todoId,
-            updateTodo: UpdateTodo(isCompleted: isCompleted),
-          );
+  }) async {
+    await ref.read(todoQueryProvider).update(
+          todoId: todoId,
+          updateTodo: UpdateTodo(isCompleted: isCompleted),
+        );
+    ref.invalidateSelf();
+  }
 
-  Future<void> delete(String todoId) =>
-      ref.read(todoQueryProvider).delete(todoId: todoId);
+  Future<void> delete(String todoId) async {
+    await ref.read(todoQueryProvider).delete(todoId: todoId);
+    ref.invalidateSelf();
+  }
 }
 
 @FirestoreDocument(path: 'todos/{todoId}')
-class Todo {
-  const Todo({
+// ignore: unused_element
+class _$Todo {
+  const _$Todo({
     required this.title,
     required this.isCompleted,
     required this.createdAt,
@@ -706,24 +710,30 @@ TodoQuery todoQuery(TodoQueryRef _) => TodoQuery();
 @riverpod
 class TodoList extends _$TodoList {
   @override
-  Future<List<ReadTodo>> build() => ref.watch(todoQueryProvider).fetchDocuments(
+  Future<List<Todo>> build() => ref.watch(todoQueryProvider).fetchDocuments(
         queryBuilder: (query) => query.orderBy('createdAt', descending: true),
       );
 
-  Future<DocumentReference<CreateTodo>> addTodo(String title) =>
-      ref.read(todoQueryProvider).add(createTodo: CreateTodo(title: title));
+  Future<void> addTodo(String title) async {
+    await ref.read(todoQueryProvider).add(createTodo: CreateTodo(title: title));
+    ref.invalidateSelf();
+  }
 
   Future<void> updateCompletionStatus({
     required String todoId,
     required bool isCompleted,
-  }) =>
-      ref.read(todoQueryProvider).update(
-            todoId: todoId,
-            updateTodo: UpdateTodo(isCompleted: isCompleted),
-          );
+  }) async {
+    await ref.read(todoQueryProvider).update(
+          todoId: todoId,
+          updateTodo: UpdateTodo(isCompleted: isCompleted),
+        );
+    ref.invalidateSelf();
+  }
 
-  Future<void> delete(String todoId) =>
-      ref.read(todoQueryProvider).delete(todoId: todoId);
+  Future<void> delete(String todoId) async {
+    await ref.read(todoQueryProvider).delete(todoId: todoId);
+    ref.invalidateSelf();
+  }
 }
 ```
 
