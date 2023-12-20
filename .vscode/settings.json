@@ -1,5 +1,11 @@
 {
-  "cSpell.words": ["createfirebaseauthcustomtoken", "firebaseauth", "Todos"],
+  "cSpell.words": [
+    "createfirebaseauthcustomtoken",
+    "firebaseauth",
+    "Kaigi",
+    "slideshare",
+    "Todos"
+  ],
   "markdownlint.config": {
     "MD034": false
   }
