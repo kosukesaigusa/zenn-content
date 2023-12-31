@@ -121,7 +121,7 @@ abstract class BuildStep implements AssetReader, AssetWriter {
 /// もっとも単純な [Builder] の例
 /// 生成元ファイルの内容をコピーして拡張子だけ変えてそのまま出力する
 class CopyBuilder implements Builder {
-  /// 入力ファイル .dart → 出力ファイル .copy.dart であることを表す
+  /// 入力ファイルは .dart、出力ファイル は .copy.dart であることを表す
   @override
   final buildExtensions = const {'.dart': ['.copy.dart']};
 
