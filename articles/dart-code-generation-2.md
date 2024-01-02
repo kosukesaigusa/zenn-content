@@ -13,7 +13,7 @@ published_at: 2023-12-25 00:00
 
 ## はじめに
 
-この記事は、先日行為回した「Dart のコード生成について【前編】」
+この記事は、先日公開した「Dart のコード生成について【前編】」
 
 https://zenn.dev/kosukesaigusa/articles/dart-code-generation-1
 
@@ -281,7 +281,6 @@ class Default {
 名前付き引数の `header` には、生成コードの冒頭に共通して記述すべき lint ルールの ignore 設定などを与えています。
 
 ```dart
-/// Builds generators for `build_runner` to run.
 Builder fromJsonGenerator(BuilderOptions options) {
   return PartBuilder(
     [FromJsonGenerator(BuildYamlConfig.fromBuildYaml(options.config))],
@@ -311,18 +310,14 @@ Builder fromJsonGenerator(BuilderOptions options) {
 `BuildYamlConfig` は下記のように自作したクラスで、`.fromBuildYaml` の factory コンストラクタで、`build.yaml` のオプション設定の `field_rename` に `snake` という文字列が設定されていた場合に、HTTP レスポンスのスネークケースのフィールドをキャメルケースに変換するようにしています。
 
 ```dart
-/// Configuration values defined in build.yaml.
 class BuildYamlConfig {
-  /// Creates a [BuildYamlConfig].
   const BuildYamlConfig({required this.convertSnakeToCamel});
 
-  /// Decode the options from a build.yaml.
   factory BuildYamlConfig.fromBuildYaml(Map<String, dynamic> yaml) =>
       BuildYamlConfig(
         convertSnakeToCamel: (yaml['field_rename'] as String?) == 'snake',
       );
 
-  /// Whether to convert field name snake_case to camelCase.
   final bool convertSnakeToCamel;
 }
 ```
@@ -334,12 +329,9 @@ class BuildYamlConfig {
 `GeneratorForAnnotation<T>` については、[Dart のコード生成について【前編】](https://zenn.dev/kosukesaigusa/articles/dart-code-generation-1) でも紹介しています。
 
 ```dart
-/// A generator for [FromJson] annotation.
 class FromJsonGenerator extends GeneratorForAnnotation<FromJson> {
-  /// Creates a new instance of [FromJsonGenerator].
   const FromJsonGenerator(this._buildYamlConfig);
 
-  /// A [BuildYamlConfig] instance.
   final BuildYamlConfig _buildYamlConfig;
 
   @override
@@ -380,7 +372,7 @@ class FromJsonGenerator extends GeneratorForAnnotation<FromJson> {
 
 各部を抜粋しながら内容を確認していきます。
 
-まずは冒頭で生成対象として読み込もうとしている `element` が `analyzer` パッケージの `ClassElement` であることを確認しています。`@FromJson` アノテーションがクラスに付されていることを確認するためです。
+冒頭で生成対象として読み込もうとしている `element` が `analyzer` パッケージの `ClassElement` であることを確認しています。`@FromJson` アノテーションがクラスに付されていることを確認するためです。
 
 `ClassElement` でない場合には `source_gen` パッケージの `InvalidGenerationSourceError` をスローして当該 `BuildStep` を中断します。
 
@@ -427,4 +419,504 @@ String generateForAnnotatedElement(
 }
 ```
 
+`FromJson` に一致するアノテーションを抽出した結果も用いて `CodeGenerationConfig` クラスのインスタンスを作成し、`FromJsonTemplate` という自作のテンプレートクラスに渡しています。最後に `StringBuffer` を文字列化して返しているのが生成されたコード文字列そのものです。
+
+`CodeGenerationConfig` クラスの詳細は後述しますが、テンプレートに渡してコード生成するのに必要な情報を集約した自作のクラスです。
+
+```dart
+@override
+String generateForAnnotatedElement(
+  Element element,
+  ConstantReader annotation,
+  BuildStep buildStep,
+) {
+  /** 省略 */
+
+  final annotation = /** 省略 */;
+
+  final config = CodeGenerationConfig(
+    className: element.name,
+    fieldConfigs: element.fields.map(parseFieldElement).toList(),
+    convertSnakeCaseToCamelCase: annotation.decodeField<bool>(
+      'convertSnakeToCamel',
+      decode: (obj) => obj.toBoolValue()!,
+      orElse: () => _buildYamlConfig.convertSnakeToCamel,
+    ),
+  );
+
+  final buffer = StringBuffer()..writeln(FromJsonTemplate(config));
+
+  return buffer.toString();
+}
+```
+
+`element.name` は生成対象のクラス名の文字列を与えます。`@FromJson() class Repository {/** 省略 */ }` ならば `'Repository'` という文字列です。
+
+```dart
+final config = CodeGenerationConfig(
+  className: element.name,
+  /** 省略 */
+);
+```
+
+`element.fields` には生成対象のクラスに定義された `FieldElement` の `List` が入っています。つまり、`id` や `starGazersCount` や `visibility` などのフィールド定義が含まれているということです。
+
+それを `.map` で展開した `FieldElement` の各要素に自作の `parseFieldElement` という関数を適用しています。その結果は `FieldConfig` という自作のクラスです。`FieldConfig` は `CodeGenerationConfig` クラスと同様にテンプレートに渡してコード生成するのに必要な、各フィールドに関する情報を集約したクラスです。`parseFieldElement` 関数および `FieldConfig` クラスについては後述します。
+
+```dart
+final config = CodeGenerationConfig(
+  /** 省略 */
+  fieldConfigs: element.fields.map(parseFieldElement).toList(),
+  /** 省略 */
+);
+```
+
+下記の `annotation.decodeField` の部分では、`@FromJson` アノテーションに記述できる `convertSnakeToCamel` の設定をパースしています。`DartObject` の拡張クラスに定義した `decodeField` というメソッドで、`@FromJson` アノテーションに `'convertSnakeToCamel'` という名前のフィールドがあればそれをデコード、なければ `orElse` の処理に進んで `build.yaml` の設定を適用するという内容になっています。
+
+```dart
+final config = CodeGenerationConfig(
+  /** 省略 */
+  convertSnakeCaseToCamelCase: annotation.decodeField<bool>(
+    'convertSnakeToCamel',
+    decode: (obj) => obj.toBoolValue()!,
+    orElse: () => _buildYamlConfig.convertSnakeToCamel,
+  ),
+);
+```
+
+`DartObject` の拡張クラスに定義した `decodeField` というメソッドは下記のような内容です。
+
+```dart
+extension DartObjectExtension on DartObject {
+  T decodeField<T>(
+    String fieldName, {
+    required T Function(DartObject obj) decode,
+    required T Function() orElse,
+  }) {
+    final field = getField(fieldName);
+    if (field == null || field.isNull) {
+      return orElse();
+    }
+    return decode(field);
+  }
+}
+```
+
+#### `CodeGenerationConfig`, `FieldConfig` の定義
+
+さて、`CodeGenerationConfig`, `FieldConfig` の 2 つのコード生成の関する情報を集約した自作クラスの定義を紹介します。
+
+`CodeGenerationConfig` クラスは下記のように定義しています。生成対象のクラス名、属する `FieldConfig` の `List`、スネークケースのフィールド名をキャメルケースに変換するかどうかの情報が定義されています。
+
+```dart
+class CodeGenerationConfig {
+  CodeGenerationConfig({
+    required this.className,
+    required this.fieldConfigs,
+    required this.convertSnakeCaseToCamelCase,
+  });
+
+  final String className;
+
+  final List<FieldConfig> fieldConfigs;
+
+  final bool convertSnakeCaseToCamelCase;
+}
+```
+
+`FieldConfig` クラスは下記のように定義しています。フィールド名、フィールドの型情報 (`DartType`)、デフォルト値を表す文字列、`JsonConverter` の設定 (`JsonConverterConfig`) が定義されています。
+
+`DartType` の拡張クラスに定義した `isNullableType` や、`DartType` の型情報から型文字列を返す `_typeToCode` 関数も下記で内容を確認できる通りです。
+
+```dart
+class FieldConfig {
+  FieldConfig({
+    required this.name,
+    required this.dartType,
+    this.defaultValueString,
+    this.jsonConverterConfig,
+  });
+
+  final String name;
+
+  final DartType dartType;
+
+  bool get isNullableType => dartType.isNullableType;
+
+  String get typeName => _typeToCode(dartType);
+
+  final String? defaultValueString;
+
+  final JsonConverterConfig? jsonConverterConfig;
+
+  bool get isNonNullableList => dartType.isDartCoreList && !isNullableType;
+
+  bool get isNullableList => dartType.isDartCoreList && isNullableType;
+}
+
+extension on DartType {
+  bool get isNullableType =>
+      this is DynamicType || nullabilitySuffix == NullabilitySuffix.question;
+}
+
+String _typeToCode(
+  DartType type, {
+  bool forceNullable = false,
+}) {
+  if (type is DynamicType) {
+    return 'dynamic';
+  } else if (type is InterfaceType) {
+    return [
+      type.element.name,
+      if (type.typeArguments.isNotEmpty)
+        '<${type.typeArguments.map(_typeToCode).join(', ')}>',
+      if (type.isNullableType || forceNullable) '?' else '',
+    ].join();
+  }
+
+  if (type is TypeParameterType) {
+    return type.getDisplayString(withNullability: false);
+  }
+  throw UnimplementedError('(${type.runtimeType}) $type');
+}
+```
+
+`analyzer` パッケージの `DartType` が関係する `FieldConfig` の内容は抽象的で分かりにくいので前に紹介した `Repository` クラスの各フィールドのそれぞれに対してその中身を紹介すると次の通りです。
+
+`id` フィールド：
+
+```txt
+{
+  name: "id",
+  dartType: InterfaceTypeImpl (String),
+  defaultValueString: null,
+  jsonConverterConfig: null
+}
+```
+
+`starGazersCount` フィールド：
+
+```txt
+{
+  name: "startGazersCount",
+  dartType: InterfaceTypeImpl (int),
+  defaultValueString: "0",
+  jsonConverterConfig: null
+}
+```
+
+`visibility` フィールド：
+
+```txt
+{
+  name: "visibility",
+  dartType: InterfaceTypeImpl (Visibility),
+  defaultValueString: null,
+  jsonConverterConfig: {
+    jsonConverterString: "_visibilityConverter",
+    clientTypeString: "Visibility",
+    jsonTypeString: "String"
+  }
+}
+```
+
+`JsonConverterConfig` クラスも自作クラスで、生成対象のクラスに属する各フィールドに `JsonConverter` が適用されている場合、その設定内容を保持するためのものです。
+
+`JsonConverter` の名前、Dart の型名、JSON での型名を文字列型で保持しています。
+
+```dart
+class JsonConverterConfig {
+  const JsonConverterConfig({
+    required this.jsonConverterString,
+    required this.clientTypeString,
+    required this.jsonTypeString,
+  });
+
+  final String jsonConverterString;
+
+  final String clientTypeString;
+
+  final String jsonTypeString;
+}
+```
+
+#### `parseFieldElement` 関数の定義
+
+`parseFieldElement` は引数として受け取った `FieldElement` をパースして、上記で説明した `FieldConfig` クラスを返す関数です。
+
+`element.metadata` にフィールドに施された `List<ElementAnnotation>` のアノテーション一覧が入っています。
+
+それぞれの `ElementAnnotation` を、
+
+- `@Default` アノテーションをパースする `_parseDefaultAnnotation` 関数
+- `JsonConverter` をパースする `_parseJsonConverterAnnotation` 関数
+
+によってパースします。
+
+```dart
+FieldConfig parseFieldElement(FieldElement element) {
+  final annotations = element.metadata;
+  final defaultValueString = annotations
+      .map(_parseDefaultAnnotation)
+      .firstWhere((value) => value != null, orElse: () => null);
+  final jsonConverterConfig = annotations
+      .map(_parseJsonConverterAnnotation)
+      .firstWhere((value) => value != null, orElse: () => null);
+
+  return FieldConfig(
+    name: element.name,
+    dartType: element.type,
+    defaultValueString: defaultValueString,
+    jsonConverterConfig: jsonConverterConfig,
+  );
+}
+```
+
+詳細な解説は省略しますが、具体的な内容はサンプルリポジトリに記述している通りです。
+
+https://github.com/kosukesaigusa/code_generation_samples/blob/c12f7c8dc6fcbc0f5cade042ce16bfd1ecd01f2e/packages/from_json_generator/lib/src/parsers/field_element_parser.dart#L56-L76
+
+https://github.com/kosukesaigusa/code_generation_samples/blob/c12f7c8dc6fcbc0f5cade042ce16bfd1ecd01f2e/packages/from_json_generator/lib/src/parsers/field_element_parser.dart#L105-L135
+
+### テンプレートの定義
+
+詳細は一部省略してきましたが、以上で、`GenerateForAnnotation` クラスの `generateForAnnotatedElement` に記述すべき、下記のコード生成に必要な情報をパースして集約する部分の解説が済んだことになります。
+
+```dart
+@override
+String generateForAnnotatedElement(
+  Element element,
+  ConstantReader annotation,
+  BuildStep buildStep,
+) {
+  /** 省略 */
+
+  final annotation = /** 省略 */;
+
+  final config = CodeGenerationConfig(
+    className: element.name,
+    fieldConfigs: element.fields.map(parseFieldElement).toList(),
+    convertSnakeCaseToCamelCase: annotation.decodeField<bool>(
+      'convertSnakeToCamel',
+      decode: (obj) => obj.toBoolValue()!,
+      orElse: () => _buildYamlConfig.convertSnakeToCamel,
+    ),
+  );
+
+  final buffer = StringBuffer()..writeln(FromJsonTemplate(config));
+
+  return buffer.toString();
+}
+```
+
+よって最後に、`CodeGenerationConfig config` をコンストラクタ引数として受け取り、コード生成結果の雛形に当てはめて生成コードを作る `FromJsonTemplate` クラスを紹介します。
+
+```dart
+class FromJsonTemplate {
+  const FromJsonTemplate(this.config);
+
+  final CodeGenerationConfig config;
+
+  @override
+  String toString() {
+    return '''
+${config.className} _\$${config.className}FromJson(Map<String, dynamic> json) => ${config.className}(
+  ${_parseFields(config.fieldConfigs)}
+);
+''';
+  }
+
+  String _parseFields(List<FieldConfig> fieldConfigs) {
+    final stringBuffer = StringBuffer();
+    for (final fieldConfig in fieldConfigs) {
+      final result = FromJsonFieldParser(
+        name: fieldConfig.name,
+        dartType: fieldConfig.dartType,
+        defaultValueString: fieldConfig.defaultValueString,
+        jsonConverterConfig: fieldConfig.jsonConverterConfig,
+        convertSnakeToCamel: config.convertSnakeCaseToCamelCase,
+      );
+      stringBuffer.writeln(result);
+    }
+    return stringBuffer.toString();
+  }
+}
+```
+
+Dart クラスの `toString()` メソッドで生成されたコードを返します。
+
+下記の部分：
+
+```dart
+${config.className} _\$${config.className}FromJson(Map<String, dynamic> json) => ${config.className}
+```
+
+は、 生成される `fromJson` 関数の下記の部分に相当します。
+
+```dart
+Repository _$RepositoryFromJson(Map<String, dynamic> json) => Repository
+```
+
+生成されるコードの下記の各フィールドのパース部分：
+
+```dart
+id: json['id'] as String,
+starGazersCount: json['starGazersCount'] as int? ?? 0,
+visibility: _visibilityConverter.fromJson(json['visibility'] as String),
+```
+
+は、`FromJsonFieldParser` という別クラスに定義しています。
+
+長いので詳細は省きますが、下記のトグルを展開して確認できます。
+
+:::details FromJsonFieldParser の内容
+
+```dart
+class FromJsonFieldParser {
+  const FromJsonFieldParser({
+    required this.name,
+    required this.dartType,
+    required this.defaultValueString,
+    required this.jsonConverterConfig,
+    required this.convertSnakeToCamel,
+  });
+
+  final String name;
+
+  final DartType dartType;
+
+  final String? defaultValueString;
+
+  final JsonConverterConfig? jsonConverterConfig;
+
+  final bool convertSnakeToCamel;
+
+  String get _jsonFieldName {
+    if (convertSnakeToCamel) {
+      return name.convertToSnakeCaseIfCamelCase();
+    } else {
+      return name;
+    }
+  }
+
+  @override
+  String toString() {
+    final result = _generateFromJsonCodeSnippet(
+      dartType,
+      defaultValueString: defaultValueString,
+      jsonConverterConfig: jsonConverterConfig,
+      isFirstLoop: true,
+    );
+    return '$name: $result,';
+  }
+
+  String _generateFromJsonCodeSnippet(
+    DartType dartType, {
+    required bool isFirstLoop,
+    String? defaultValueString,
+    JsonConverterConfig? jsonConverterConfig,
+    String parsedKey = 'e',
+  }) {
+    final hasDefaultValue = (defaultValueString ?? '').isNotEmpty;
+    final defaultValueExpression =
+        (isFirstLoop && hasDefaultValue) ? ' ?? $defaultValueString' : '';
+
+    if (jsonConverterConfig != null) {
+      final fromJsonString = '${jsonConverterConfig.jsonConverterString}.'
+          "fromJson(json['$_jsonFieldName']"
+          ' as ${jsonConverterConfig.jsonTypeString})';
+      if (defaultValueString != null) {
+        return "json['$_jsonFieldName'] == null "
+            '? $defaultValueString : $fromJsonString';
+      } else {
+        return fromJsonString;
+      }
+    }
+
+    final effectiveParsedKey =
+        isFirstLoop ? "json['$_jsonFieldName']" : parsedKey;
+
+    if (dartType.isDartCoreList) {
+      if (dartType.firstTypeArgumentOfList != null) {
+        final parsedListItemType = _generateFromJsonCodeSnippet(
+          dartType.firstTypeArgumentOfList!,
+          defaultValueString: defaultValueString,
+          isFirstLoop: false,
+        );
+        if (dartType.isNullableType || defaultValueExpression.isNotEmpty) {
+          return '($effectiveParsedKey as List<dynamic>?)?.map((e) '
+              '=> $parsedListItemType).toList()$defaultValueExpression';
+        } else {
+          return '($effectiveParsedKey as List<dynamic>).map((e) '
+              '=> $parsedListItemType).toList()';
+        }
+      }
+    }
+
+    if (dartType.isJsonMap) {
+      if (dartType.keyValueOfMap != null) {
+        final valueType = dartType.keyValueOfMap!.value;
+        if (valueType is DynamicType) {
+          if (dartType.isNullableType || defaultValueExpression.isNotEmpty) {
+            return '$effectiveParsedKey '
+                'as Map<String, dynamic>?$defaultValueExpression';
+          } else {
+            return '$effectiveParsedKey as Map<String, dynamic>';
+          }
+        }
+        final parsedMapValueType = _generateFromJsonCodeSnippet(
+          valueType,
+          defaultValueString: defaultValueString,
+          isFirstLoop: false,
+          parsedKey: 'v',
+        );
+        if (dartType.isNullableType || defaultValueExpression.isNotEmpty) {
+          return '($effectiveParsedKey as Map<String, dynamic>?)?.map((k, v) '
+              '=> MapEntry(k, $parsedMapValueType))$defaultValueExpression';
+        } else {
+          return '($effectiveParsedKey as Map<String, dynamic>).map((k, v) => '
+              'MapEntry(k, $parsedMapValueType))$defaultValueExpression';
+        }
+      }
+    }
+
+    final typeNameString = dartType.typeName(
+      forceNullable:
+          dartType.isNullableType || defaultValueExpression.isNotEmpty,
+    );
+    return '$effectiveParsedKey as $typeNameString$defaultValueExpression';
+  }
+}
+```
+
+:::
+
+サンプルリポジトリにも同じものがあります。
+
+https://github.com/kosukesaigusa/code_generation_samples/blob/c12f7c8dc6fcbc0f5cade042ce16bfd1ecd01f2e/packages/from_json_generator/lib/src/parsers/from_json_field_parser.dart
+
+上記の `_generateFromJsonCodeSnippet` メソッドでフィールドの型情報を表す `DartType` をパースしながら、デフォルト値の文字列 `String? defaultValueString` や `JsonConverter` の設定を与える  `JsonConverterConfig? jsonConverterConfig` を適用して、各フィールドのパース部分のコードを生成していきます。
+
+深くネストした `List` や `Map` も取り扱えるように取り扱えるように再帰的に呼び出されるような作りになっています。
+
 ## おわりに
+
+本記事では、Dart のコード生成を支える技術を紹介した前編記事
+
+https://zenn.dev/kosukesaigusa/articles/dart-code-generation-1
+
+の続編として、Dart のコード生成パッケージを実際に作成する方法を紹介しました。
+
+私自身、このような知見を活かして、flutterfire_gen という、Flutter の Cloud Firestore のためのコード生成パッケージを開発しており、そちらの紹介記事も先日書きましたのでぜひご覧ください：
+
+https://zenn.dev/kosukesaigusa/articles/flutterfire_gen
+
+flutterfire_gen のリポジトリはこちらです：
+
+https://github.com/kosukesaigusa/flutterfire_gen
+
+本記事のサンプルリポジトリも再掲します：
+
+https://github.com/kosukesaigusa/code_generation_samples
+
+これから Dart のコード生成パッケージの自作に取り組む方の参考になれば幸いです。
