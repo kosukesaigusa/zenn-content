@@ -4,7 +4,7 @@ emoji: "🛠️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter"]
 published: true
-published_at: 2023-12-25 00:00
+published_at: 2024-01-02 00:00
 ---
 
 :::message
