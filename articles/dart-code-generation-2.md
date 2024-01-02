@@ -378,7 +378,7 @@ class FromJsonGenerator extends GeneratorForAnnotation<FromJson> {
 
 このクラスにコード生成のロジックの骨格が記述されていることになります。
 
-各部を抜粋しながら気実内容を確認していきます。
+各部を抜粋しながら内容を確認していきます。
 
 まずは冒頭で生成対象として読み込もうとしている `element` が `analyzer` パッケージの `ClassElement` であることを確認しています。`@FromJson` アノテーションがクラスに付されていることを確認するためです。
 
