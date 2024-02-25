@@ -58,3 +58,37 @@ https://zenn.dev/cloud_ace/articles/b30971199b392c
 
 重要なことは、Cloud Run の「コンテナイメージをビルドできるものであれば、任意のプログラミング言語で記述されたコードをデプロイできる」という特徴により、Dart で書いた関数（サービス）を Cloud Run にデプロイして動かすことができるということです。
 
+## dart_firebase_admin パッケージ
+
+[dart_firebase_admin](https://pub.dev/packages/dart_firebase_admin) パッケージは、Dart や Flutter に関わるエンジニアにはよく知られている invertase が開発している Dart 向けの Firebase Admin SDK を利用できるようにするパッケージです。
+
+https://pub.dev/packages/dart_firebase_admin
+
+https://github.com/invertase/dart_firebase_admin
+
+[dart_firebase_admin](https://pub.dev/packages/dart_firebase_admin) パッケージの提供する機能のスコープは大まかに
+
+- Firebase Admin SDK を利用した Admin 権限での `adminApp` の初期化
+- Admin 権限を用いた Dart 向けの Firebase API（[firebaseapis](https://pub.dev/packages/firebaseapis) パッケージも参照）を通じた Firebase の各種機能の API コール
+
+などです。
+
+下記のようにして、Cloud Firestore, Firebase Auth, Firebase Messaging などの各機能を Admin 権限で利用することができるようになります。
+
+```dart
+final adminApp = FirebaseAdminApp.initializeApp(
+  'your-project-id',
+  Credential.fromServiceAccountParams(
+    clientId: 'your-client-id',
+    privateKey: 'your-private-key',
+    email: 'your-email',
+  ),
+);
+
+final firestore = Firestore(adminApp);
+
+final auth = Auth(adminApp);
+
+final messaging = Messaging(adminApp);
+```
+
