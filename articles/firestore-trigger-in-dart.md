@@ -221,3 +221,61 @@ $ curl https://hello-<生成された URL に対応する文字列>-an.a.run.app
 Hello, World!
 ```
 
+## Dart で Cloud Event トリガー関数を実装し、Cloud Run にデプロイする
+
+Cloud Run には HTTP 関数だけではなく、Cloud Event をトリガーとする関数をデプロイすることもできます。
+
+後ほど、この方法で Cloud Run にデプロイした関数に、Firestore のドキュメントの Create, Update, Delete, Write などのイベントを転送できるようにします。
+
+[functions_framework パッケージ](https://pub.dev/packages/functions_framework) では、そのような Cloud Event をトリガーとする関数を簡単に書く方法も提供してくれています。
+
+HTTP 関数の定義と同様に `@CloudFunction()` アノテーションを使用しつつ、引数に `CloudEvent event` と `RequestContext context` を指定するだけです。
+
+`CloudEvent` 型の `event` パラメータに、転送されてきた Cloud Event の内容が入っています。
+
+```dart
+@CloudFunction()
+void oncloudevent(CloudEvent event, RequestContext context) {
+  context.logger.info('[CloudEvent] source: ${event.source}, subject: ${event.subject}');
+}
+```
+
+デプロイする際の `Dockerfile` は下記の通りで、HTTP 関数との違いは `--signature-type` オプションに `cloudevent` を指定するところだけです。
+
+```Dockerfile
+FROM dart:stable AS build
+
+# Resolve app dependencies.
+WORKDIR /app
+COPY pubspec.* ./
+RUN dart pub get
+
+# Copy app source code and AOT compile it.
+COPY . .
+# Ensure packages are still up-to-date if anything has changed
+RUN dart pub get --offline
+RUN dart pub run build_runner build --delete-conflicting-outputs
+RUN dart compile exe bin/server.dart -o bin/server
+
+# Build minimal serving image from AOT-compiled `/server` and required system
+# libraries and configuration files stored in `/runtime/` from the build stage.
+FROM scratch
+COPY --from=build /runtime/ /
+COPY --from=build /app/bin/server /app/bin/
+
+# Start server.
+EXPOSE 8080
+ENTRYPOINT ["/app/bin/server", "--target=oncloudevent", "--signature-type=cloudevent"]
+```
+
+デプロイコマンドもほぼ同様です。
+
+Cloud Event は GCP の同一プロジェクト内の他のサービスから発生するもので、public access にする必要がないので `--no-allow-unauthenticated` のオプションを与えています。
+
+```sh
+gcloud run deploy oncloudevent \
+  --source=. \                  # can use $PWD or . for current dir
+  --platform=managed \          # for Cloud Run
+  --no-allow-unauthenticated    # for restricted access
+```
+
