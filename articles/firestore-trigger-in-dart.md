@@ -102,3 +102,122 @@ https://github.com/GoogleCloudPlatform/functions-framework-dart
 
 以下ではいよいよ、[functions_framework パッケージ](https://pub.dev/packages/functions_framework) の公式のサンプルを参考にしながら、Dart で書いた関数を Cloud Run にデプロイする方法を紹介していきます。
 
+## Dart で HTTP 関数を実装し、Cloud Run にデプロイする
+
+下記のようにして後に Cloud Run にデプロイして HTTP エンドポイントとして利用できるようになる関数を記述します。
+
+Dart 製の Web サーバ再度のフレームワークである [shelf](https://pub.dev/packages/shelf) パッケージも、その `Response`, `Request` 型を利用するために import されています。
+
+```dart
+import 'package:functions_framework/functions_framework.dart';
+import 'package:shelf/shelf.dart';
+
+@CloudFunction()
+Response hello(Request request) => Response.ok('Hello, World!');
+```
+
+上記は `hello` という関数（サービス名）でリクエストするとステータスコード 200 で "Hello, World!" のメッセージが返ってきます。
+
+上記の `@CloudFunction()` アノテーションは [functions_framework パッケージ](https://pub.dev/packages/functions_framework) が提供するものです。
+
+build_runner によるコード生成を実行することで、
+
+```sh
+dart pub run build_runner build --delete-conflicting-outputs
+```
+
+`bin/server.dart` に下記のようなファイルが生成されます。
+
+Dart のエントリポイントである `main` 関数とともに、`_nameToFunctionTarget` 関数が生成されています。
+
+`_nameToFunctionTarget` 関数が、`switch` 文によって、引数で受け取った関数名に応じた関数を呼び出すような作りになっています。
+
+引数が `'hello'` の文字列だった場合に呼び出されるのが先ほど上で定義した `hello` 関数  (`function_library.hello`) です。
+
+```dart
+import 'package:functions_framework/serve.dart';
+import 'package:hello_world_function/functions.dart' as function_library;
+
+Future<void> main(List<String> args) async {
+  await serve(args, _nameToFunctionTarget);
+}
+
+FunctionTarget? _nameToFunctionTarget(String name) => switch (name) {
+      'hello' => FunctionTarget.http(function_library.hello),
+      _ => null
+    };
+```
+
+下記のようにしてこの Dart ファイルを実行すると、Web サーバが起動し、デフォルトでは 8080 番ポートでリクエストを受け付けます。
+
+```sh
+$ dart run bin/server.dart
+Listening on :8080
+```
+
+curl コマンドでリクエストしてみると、確かに "Hello World!" のレスポンスをすることが確認できます。
+
+```sh
+$ curl http://localhost:8080
+Hello, World!
+```
+
+さて、この Dart の Web サーバを Cloud Run にデプロイするためには、下記のような `Dockerfile` を使用します。
+
+次のようなことが行われています。
+
+- 冒頭の `FROM dart:stable AS build` で Dart の環境が構築された軽量な Image を指定する
+- build_runner を実行してコード生成を行う
+- `dart compile exe` コマンドで指定した Dart ファイルをコンパイルして実行可能ファイル化する
+- エントリポイントとして生成した実行可能ファイルを指定し、 `--target` オプションに関数名を、 `--signature-type` オプションに `http` を指定して 8080 番ポートで Web サーバを起動する
+
+至ってシンプルな内容です。
+
+```Dockerfile
+FROM dart:stable AS build
+
+# Resolve app dependencies.
+WORKDIR /app
+COPY pubspec.* ./
+RUN dart pub get
+
+# Copy app source code and AOT compile it.
+COPY . .
+# Ensure packages are still up-to-date if anything has changed
+RUN dart pub get --offline
+RUN dart pub run build_runner build --delete-conflicting-outputs
+RUN dart compile exe bin/server.dart -o bin/server
+
+# Build minimal serving image from AOT-compiled `/server` and required system
+# libraries and configuration files stored in `/runtime/` from the build stage.
+FROM scratch
+COPY --from=build /runtime/ /
+COPY --from=build /app/bin/server /app/bin/
+
+# Start server.
+EXPOSE 8080
+ENTRYPOINT ["/app/bin/server", "--target=hello", "--signature-type=http"]
+```
+
+デプロイするときには gcloud CLI の下記のコマンドを実行します。
+
+`source` オプションに `Dockerfile` の位置を指定し、 `--platform=managed` （デフォルト値）とすることでその設定・構成で Cloud Run に関数をデプロイすることができます。
+
+```sh
+gcloud run deploy hello \
+  --source=. \               # can use $PWD or . for current dir
+  --platform=managed \       # for Cloud Run
+  --allow-unauthenticated    # for public access
+```
+
+以上で Dart で書いた HTTP 関数を Cloud Run にデプロイすることができました。
+
+curl コマンドで実際にデプロイされた HTTP 関数にリクエストをしてみましょう。
+
+※ public な関数として誰でもリクエストできるようになっているので注意してください。
+
+```sh
+$ curl https://hello-<生成された URL に対応する文字列>-an.a.run.app
+Hello, World!
+```
+
