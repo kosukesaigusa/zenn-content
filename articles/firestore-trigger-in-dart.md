@@ -92,3 +92,13 @@ final auth = Auth(adminApp);
 final messaging = Messaging(adminApp);
 ```
 
+## functions_framework パッケージ
+
+[functions_framework パッケージ](https://pub.dev/packages/functions_framework) は、GoogleCloudPlatform オーガニゼーションで開発されている、Dart で記述して Cloud Run などにデプロイするための仕組みとサンプルを提供します。
+
+https://pub.dev/packages/functions_framework
+
+https://github.com/GoogleCloudPlatform/functions-framework-dart
+
+以下ではいよいよ、[functions_framework パッケージ](https://pub.dev/packages/functions_framework) の公式のサンプルを参考にしながら、Dart で書いた関数を Cloud Run にデプロイする方法を紹介していきます。
+
