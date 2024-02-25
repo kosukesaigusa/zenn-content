@@ -338,3 +338,38 @@ gcloud run deploy hello \
   --set-secrets=PROJECT_ID=PROJECT_ID:latest,CLIENT_ID=CLIENT_ID:latest,CLIENT_EMAIL=CLIENT_EMAIL:latest,PRIVATE_KEY=PRIVATE_KEY:latest
 ```
 
+## Workload Identity 連携
+
+Workload Identity 連携に関する説明を引用します。
+
+> このドキュメントでは、外部ワークロードのための ID 連携の概要について説明します。ID 連携を使用することで、サービスアカウントキーを使用せずに、Google Cloud リソースへのアクセス権を、オンプレミスまたはマルチクラウドのワークロードに付与できます。
+>
+> ID 連携は、アマゾン ウェブ サービス（AWS）や、OpenID Connect（OIDC）をサポートする任意の ID プロバイダ（IdP）（Microsoft Azure など）、SAML 2.0 で使用できます。
+>
+> Google Cloud の外部で実行されているアプリケーションは、[サービスアカウントキー](https://cloud.google.com/iam/docs/service-account-creds?hl=ja#key-types)を使用して Google Cloud リソースにアクセスできます。ただし、サービス アカウント キーは強力な認証情報であり、正しく管理しなければセキュリティ上のリスクとなります。
+>
+> ID 連携を使用すると、Identity and Access Management（IAM）を使用し、外部 ID に対して、サービスアカウントになりすます機能を含む [IAM ロール](https://cloud.google.com/iam/docs/overview?hl=ja#roles)を付与できます。これにより、サービスアカウントキーに関連するメンテナンスとセキュリティの負担がなくなります。
+
+https://cloud.google.com/iam/docs/workload-identity-federation?hl=ja
+
+具体的な設定内容などは下記の記事などが非常に参考になります。
+
+https://zenn.dev/cloud_ace/articles/7fe428ac4f25c8
+
+Workload Identity 連携を行うことで、サービスアカウントキーを発行することなく、特定のリポジトリの GitHub Actions からのみ所定の操作を行うことができるように設定することができます。
+
+```yaml
+jobs:
+  deploy:
+    steps:
+      # 省略
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          project_id: ${{ secrets.PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+```
+
