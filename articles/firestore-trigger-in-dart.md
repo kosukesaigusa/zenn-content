@@ -279,3 +279,40 @@ gcloud run deploy oncloudevent \
   --no-allow-unauthenticated    # for restricted access
 ```
 
+## Eventarc で Firestore のイベントを Cloud Run に転送する
+
+Eventarc に関する説明を引用します。
+
+> Eventarc を使用すると、基盤となるインフラストラクチャを実装、カスタマイズ、またはメンテナンスすることなく、[イベントドリブンアーキテクチャ](https://cloud.google.com/eventarc/docs/event-driven-architectures?hl=ja)を構築できます。Eventarc は、分離されたマイクロサービス間の状態変更（イベント）を管理する標準化されたソリューションを提供します。トリガーされると、Eventarc は配信、セキュリティ、認可、オブザーバビリティ、エラー処理を行いながら、これらのイベントをさまざまな宛先に転送します（このドキュメントの[イベントの宛先](https://cloud.google.com/eventarc/docs/overview?hl=ja#targets)を参照）。
+
+https://cloud.google.com/eventarc/docs/overview?hl=ja
+
+Eventarc は GCP のさまざまなソースで利用できるイベント機能を提供します。
+
+Eventarc を使用することで、[CloudEvents](https://cloudevents.io/) 形式のイベントを、あるサービス（イベントプロバイダ）からあるサービス（イベントレシーバ・コンシューマ）へ転送することができます。
+
+[CloudEvents](https://cloudevents.io/) はそのようなイベントのメタデータを記述する標準的な仕様です。
+
+https://cloudevents.io/
+
+たとえば、gcloud CLI を用いて、
+
+- Cloud Firestore の `(default)` データベースの `foos/{fooId}` ドキュメントに
+- ドキュメントが作成された (`google.cloud.firestore.document.v1.created`) イベントを
+- Cloud Run の `oncloudevent` サービス（関数）にイベントを転送する
+
+トリガーを作成することができます。
+
+```sh
+gcloud eventarc triggers create oncloudevent \
+  --destination-run-service=oncloudevent \
+  --event-filters="type=google.cloud.firestore.document.v1.created" \
+  --event-filters="database=(default)" \
+  --event-filters="namespace=(default)" \
+  --event-filters-path-pattern="document=foos/{fooId}" \
+  --event-data-content-type="application/protobuf" \
+  --service-account="your-service-account-name@project-id.iam.gserviceaccount.com" \
+```
+
+もちろん Google Cloud コンソール の GUI を通じて同等の操作を行うことも容易にできます。または Eventarc API を使用して管理することもできます。
+
