@@ -38,3 +38,23 @@ GCP の Cloud Run, Eventarc, Secret Manager や Workload Identity などを活�
 
 が、個人的には、まだ試しきれていない機能も触ってみつつ、今後は積極的に Dart で Firebase で使用するサーバサイドの処理を書いていこうと考えていますし、すでにそのくらいは使える水準に達してきていると思っています。
 
+## Cloud Run
+
+Cloud Run に関する説明を引用します：
+
+> Cloud Run は、Google のスケーラブルなインフラストラクチャ上でコンテナを直接実行できるマネージドコンピューティングプラットフォームです。
+>
+> コンテナイメージをビルドできるものであれば、任意のプログラミング言語で記述されたコードを Cloud Run にデプロイできます。コンテナ イメージのビルドは任意です。Go、Node.js、Python、Java、.NET Core、Ruby を使用している場合は、使用している言語のベスト プラクティスに従って、コンテナをビルドする[ソースベースのデプロイ](https://cloud.google.com/run/docs/deploying-source-code?hl=ja) オプションを使用できます。
+
+https://cloud.google.com/run/docs/overview/what-is-cloud-run?hl=ja
+
+昨年の Google I/O 2023 でも紹介されていましたが（GA になったのは 2022 年ですが）、Cloud Functions (2nd Gen) は裏側では Cloud Run で動くようになっています。
+
+Cloud Functions (1st Gen) を使用する場合と比べても機能的には大差ありません。
+`
+参考：
+
+https://zenn.dev/cloud_ace/articles/b30971199b392c
+
+重要なことは、Cloud Run の「コンテナイメージをビルドできるものであれば、任意のプログラミング言語で記述されたコードをデプロイできる」という特徴により、Dart で書いた関数（サービス）を Cloud Run にデプロイして動かすことができるということです。
+
