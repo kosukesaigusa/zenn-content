@@ -316,3 +316,25 @@ gcloud eventarc triggers create oncloudevent \
 
 もちろん Google Cloud コンソール の GUI を通じて同等の操作を行うことも容易にできます。または Eventarc API を使用して管理することもできます。
 
+## Secrete Manager
+
+Secret Manager に関する説明を引用します。
+
+> Secret Manager を使用すると、[シークレット](https://cloud.google.com/secret-manager/docs/overview?hl=ja#secret)をバイナリ blob またはテキスト文字列として保存、管理、アクセスできます。適切な権限を使用して、シークレットのコンテンツを表示できます。
+>
+> Secret Manager は、実行時にアプリケーションが必要とする構成情報（データベース パスワード、API キー、TLS 証明書など）を保存するのに便利です。
+
+https://cloud.google.com/secret-manager/docs/overview?hl=ja
+
+Cloud Run にデプロイした関数で Firebase Admin SDK を利用するための機密情報（private key など）は Secret Manager で管理・使用できるようにするのが良いでしょう。
+
+Cloud Run へのサービスのデプロイ時に、たとえば下記のように `--set-secrets` オプションにキー名・値とバージョンを列挙することで、Cloud Run のサービスが参照すべき機密情報を設定できます。
+
+```sh
+gcloud run deploy hello \
+  --source=. \                    # can use $PWD or . for current dir
+  --platform=managed \            # for Cloud Run
+  --no-allow-unauthenticated \    # for restricted access
+  --set-secrets=PROJECT_ID=PROJECT_ID:latest,CLIENT_ID=CLIENT_ID:latest,CLIENT_EMAIL=CLIENT_EMAIL:latest,PRIVATE_KEY=PRIVATE_KEY:latest
+```
+
