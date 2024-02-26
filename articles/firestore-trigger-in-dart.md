@@ -373,3 +373,260 @@ jobs:
           service_account: ${{ secrets.SERVICE_ACCOUNT }}
 ```
 
+## GitHub Actions でデプロイワークフローを組む
+
+従来通りの方法で Node.js の SDK を用いて Firebase Functions を書く場合は、firebase CLI の `firebase deploy --only functions(:関数名)` コマンドを実行することで、関数をデプロイすることができます。
+
+また、それが Firestore のトリガー関数である場合は、下記のように `firebase-functions` パッケージを使用して記述されていれば、 `foos` コレクションのドキュメントが作成されたことをトリガーとする関数がデプロイされます。
+
+```ts
+import * as functions from 'firebase-functions'
+
+export const onCreateSubmission = functions
+    .region(`asia-northeast1`)
+    .firestore.document(`/foos/{fooId}`)
+    .onCreate(async (snapshot, context) => {
+        /** 省略 */
+    })
+```
+
+Dart で関数を書いてそれを Cloud Run にデプロイする場合、firebase CLI を使用することはできず、`firebase-functions` パッケージのようなものも存在しません。
+
+そこで、ここでは GitHub Actions で、ある程度快適なデプロイワークフローを組む例を示すことにします。
+
+具体的な内容は折りたたんでいるので適宜展開して確認してください。
+
+また、ワークフローのサンプルの全体は下記で確認できます。
+
+https://github.com/kosukesaigusa/full_dart_monorepo/tree/main/.github
+
+ワークフローでは下記の内容を行うことにします。
+
+- gcloud CLI で Dart で書いた関数（HTTP や Firestore トリガー）を Cloud Run にデプロイする
+- それが Firestore トリガーならば、それに対応する Eventarc トリガーを作成する
+- 不要になった（Cloud Run にデプロイされているが、手元にもう存在しない）関数を削除する
+
+まず、`.github/actions/services.yml` に下記のように関数名と一緒に `signature_type` や、Firestore トリガー関数の場合には、`event_type` や `path_pattern` を列挙することにします。
+
+:::details .github/actions/services.yml
+
+```yml
+services:
+  - service: hello
+    signature_type: http
+  - service: oncloudevent
+    signature_type: cloudevent
+    event_type: google.cloud.firestore.document.v1.created
+    path_pattern: document=foos/{fooId}
+```
+
+:::
+
+上記の `services.yml` を下記のような `deploy.yml` でパースして `$GITHUB_OUTPUT` に格納し、`reusable_deploy_workflow.yml` の `services` に渡すようにします。
+
+:::details deploy.yml
+
+```yml
+jobs:
+  set_services:
+    runs-on: ubuntu-latest
+
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set services
+        id: set-services
+        run: |
+          services=$(cat ${{ github.workspace }}/.github/actions/services.yml | ruby -ryaml -rjson -e 'puts YAML.load(STDIN.read)["services"].to_json')
+          echo $services
+          echo "services=${services}" >> $GITHUB_OUTPUT
+
+  call_workflow:
+    needs: set_services
+    uses: ./reusable_deploy_workflow.yml
+    secrets: inherit
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    with:
+      services: ${{ needs.set_services.outputs.services }}
+```
+
+:::
+
+`deploy.yml` から呼び出される `reusable_deploy_workflow.yml` では、下記のようにして、`strategy.matrix` に `.github/actions/services.yml` の内容を反映させます。
+
+:::details reusable_deploy_workflow.yml
+
+```yml
+on:
+  workflow_call:
+    inputs:
+      services:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.services) }}
+```
+
+:::
+
+事前準備として、下記のようにリポジトリと Dart の環境を設定し、`google-github-actions/auth@v2` で Workload Identity を用いて認証をし、`google-github-actions/setup-gcloud@v2` で gcloud SDK のセットアップを済ませます。
+
+:::details reusable_deploy_workflow.yml
+
+```yml
+# 省略
+
+jobs:
+  deploy:
+    # 省略
+
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+
+      - name: Set up Dart
+        uses: 'dart-lang/setup-dart@v1'
+        with:
+          sdk: stable
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          project_id: ${{ secrets.PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+       - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+```
+
+:::
+
+その後、`google-github-actions/deploy-cloudrun@v2` を用いて関数を Cloud Run にデプロイします。
+
+`gcloud run deploy` コマンドを実行するのと同等の内容です。
+
+:::details reusable_deploy_workflow.yml
+
+```yml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 省略
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          source: ./
+          service: ${{ matrix.service }}
+          region: ${{ env.REGION }}
+          flags: ${{ env.FLAGS }}
+          env_vars: キー名=値
+          secrets: キー名=値:latest
+```
+
+:::
+
+デプロイした関数が Firestore トリガーならば、それに対応する Eventarc トリガーを作成します。
+
+また、すでに対応するトリガーが作成済みならばスキップするために、`gcloud eventarc triggers describe` で作成済みのトリガー一覧を取得して使用しています。
+
+:::details reusable_deploy_workflow.yml
+
+```yml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 省略
+
+      - name: Create Eventarc Trigger
+        if: ${{ matrix.signature_type == 'cloudevent' }}
+        run: |
+          if ! gcloud eventarc triggers describe ${{ matrix.service }} --location=${{ env.REGION }} --project=${{ secrets.PROJECT_ID }} > /dev/null 2>&1; then
+            echo "Trigger does not exist. Creating trigger."
+            gcloud eventarc triggers create ${{ matrix.service }} \
+              --location=${{ env.REGION }} \
+              --destination-run-service=${{ matrix.service }} \
+              --event-filters="type=${{ matrix.event_type }}" \
+              --event-filters="database=(default)" \
+              --event-filters="namespace=(default)" \
+              --event-filters-path-pattern="${{ matrix.path_pattern }}" \
+              --event-data-content-type="application/protobuf" \
+              --service-account="${{ secrets.EVENTARC_SERVICE_ACCOUNT }}" \
+              --project=${{ secrets.PROJECT_ID }}
+          else
+            echo "Trigger already exists. Skipping creation."
+          fi
+```
+
+:::
+
+さらに、`deploy` ジョブ後の `cleanup` ジョブとして、Cloud Run にデプロイ済みだが `.github/actions/services.yml` にはもう含まれていない関数を削除する処理を行っています。
+
+デプロイ済みの関数は `gcloud run services list --platform managed` で一覧にすることができます。
+
+:::details reusable_deploy_workflow.yml
+
+```yml
+jobs:
+  deploy:
+
+    # 省略
+
+  cleanup:
+    needs: deploy
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # 省略
+
+      - name: Cleanup Services
+        run: |
+          services=$(echo '${{ inputs.services }}' | ruby -rjson -e 'puts JSON.parse(STDIN.read).map { |s| s["service"] }.join(" ")')
+          deployed_services=$(gcloud run services list --platform managed --region ${{ env.REGION }} --project ${{ secrets.PROJECT_ID }} --format="value(name)")
+
+          services_to_delete=()
+          for service in $deployed_services; do
+            if [[ ! $services =~ $service ]]; then
+              services_to_delete+=($service)
+            fi
+          done
+
+          if [ ${#services_to_delete[@]} -eq 0 ]; then
+            echo "No services to delete."
+          else
+            echo "Services to delete: ${services_to_delete[@]}"
+            for service in "${services_to_delete[@]}"; do
+              echo "Deleting service: $service"
+              gcloud run services delete $service \
+                --platform managed \
+                --region ${{ env.REGION }} \
+                --project ${{ secrets.PROJECT_ID }} \
+                --quiet
+            done
+          fi
+```
+
+:::
+
