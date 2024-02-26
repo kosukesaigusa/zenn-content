@@ -61,7 +61,7 @@ https://cloud.google.com/run/docs/overview/what-is-cloud-run?hl=ja
 昨年の Google I/O 2023 でも紹介されていましたが（GA になったのは 2022 年ですが）、Cloud Functions (2nd Gen) は裏側では Cloud Run で動くようになっています。
 
 Cloud Functions (1st Gen) を使用する場合と比べても機能的には大差ありません。
-`
+
 参考：
 
 https://zenn.dev/cloud_ace/articles/b30971199b392c
