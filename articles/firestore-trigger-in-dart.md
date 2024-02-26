@@ -27,6 +27,12 @@ GCP の Cloud Run, Eventarc, Secret Manager や Workload Identity などを活�
 
 ことを目標とします。
 
+サンプルリポジトリはこちら：
+
+https://github.com/kosukesaigusa/full_dart_monorepo
+
+です。
+
 注意点として、
 
 - この資料で紹介する [dart_firebase_admin](https://pub.dev/packages/dart_firebase_admin) パッケージは、まだ初期段階で対応していない機能やバグが含まれている可能性があり、時には自らそのバグを追って解決する必要がある
