@@ -630,3 +630,110 @@ jobs:
 
 :::
 
+## 実例
+
+### HTTP 関数：カスタムトークン認証で Firebase Auth と LINE ログインを連携する
+
+個人的によく実装するもので Zenn でも記事を書いてまとめているのですが、HTTP 関数の実例として、カスタムトークン認証で Firebase Auth と LINE ログインを連携するための、サーバサイドでやる必要のある典型的な実装例を紹介します。
+
+https://zenn.dev/kosukesaigusa/articles/line-login-with-firebase-auth-by-custom-token
+
+なお、dart_firebase_admin パッケージが提供する `createCustomToken` メソッドにはそのカスタムトークンのフォーマットが誤っているというバグがあり、ちょうど先日 PR を作ったところです。
+
+PR レビューが遅れていてまだマージされていませんが、同様の報告をしていた方からもこれで解決されるとの確認もされています。
+
+https://github.com/invertase/dart_firebase_admin/pull/23
+
+`lib/functions.dart` に `@CloudFunction()` を用いて HTTP 関数を定義します。
+
+Cloud Run の関数名には大文字を使えないなどの制約があるので、すべて小文字の関数名にしています。
+
+```dart
+@CloudFunction()
+Future<Response> createfirebaseauthcustomtoken(Request request) =>
+    CreateFirebaseAuthCustomTokenFunction(
+      firestore: firestore,
+      auth: auth,
+      request: request,
+    ).call();
+```
+
+`firestore` や `auth` は下記のように初期化した `AdminApp` を用いてインスタンス化した Cloud Firestore や Firebase Auth の機能を利用可能にするために `dart_firebase_admin` パッケージが提供しているものです。
+
+```dart
+final environmentVariable = EnvironmentVariable(EnvironmentProvider());
+
+final _adminApp = FirebaseAdminApp.initializeApp(
+  environmentVariable.projectId,
+  Credential.fromServiceAccountParams(
+    clientId: environmentVariable.clientId,
+    privateKey: environmentVariable.privateKey,
+    email: environmentVariable.clientEmail,
+  ),
+);
+
+final firestore = Firestore(_adminApp);
+
+final auth = Auth(_adminApp);
+```
+
+下記がカスタムトークン認証で Firebase Auth と LINE ログインを連携する処理の内容です。
+
+private メソッドの内容は省略していますが、上記で紹介した記事の TypeScript の実装と対応する形で Dart でサーバサイドの処理が実装できています。
+
+```dart
+class CreateFirebaseAuthCustomTokenFunction {
+  const CreateFirebaseAuthCustomTokenFunction({
+    required this.firestore,
+    required this.auth,
+    required this.request,
+  });
+
+  final Firestore firestore;
+
+  final Auth auth;
+
+  final Request request;
+
+  /// カスタムトークン認証で Firebase Auth と LINE ログインを連携する。
+  ///
+  /// [request] のリクエストボディから得られる `accessToken` を [_verifyAccessToken]
+  /// メソッドで検証し、LINE プロフィールを [_getLineProfile] メソッドで取得する。
+  ///
+  /// その後、Firebase Auth で LINE のユーザー ID からカスタムトークンを作成し、Firestore
+  /// にプロフィール情報を保存して、カスタムトークンを返す。
+  Future<Response> call() async {
+    try {
+      final json =
+          jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final accessToken = json['accessToken'] as String?;
+      if (accessToken == null) {
+        return Response.badRequest(
+          body: jsonEncode({'message': 'accessToken is required.'}),
+        );
+      }
+
+      await _verifyAccessToken(accessToken);
+
+      final profile = await _getLineProfile(accessToken);
+
+      final customToken = await auth.createCustomToken(profile.lineUserId);
+
+      await firestore.collection('users').doc(profile.lineUserId).set({
+        'displayName': profile.displayName,
+        'imageUrl': profile.imageUrl,
+      });
+
+      return Response.ok(jsonEncode({'customToken': customToken}));
+    } on Exception catch (e) {
+      return Response.badRequest(body: jsonEncode({'message': e.toString()}));
+    }
+  }
+
+  Future<void> _verifyAccessToken(String accessToken) async { /** 省略 */ }
+
+  Future<({String lineUserId, String displayName, String? imageUrl})>
+      _getLineProfile(String accessToken) async { /** 省略 */ }
+}
+```
+
