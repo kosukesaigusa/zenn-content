@@ -737,3 +737,96 @@ class CreateFirebaseAuthCustomTokenFunction {
 }
 ```
 
+### Firestore トリガー関数：ドキュメントの作成をトリガーに当該ドキュメントを更新する
+
+今度は Firestore トリガー関数の実例として、`submissions` コレクションにドキュメント（稟議や経費申請のような提出物データを想定）が作成された時に発火し、そのドキュメントに `submittedByUserId`（提出者の ID）フィールドが含まれていれば、`isVerified` フィールドが `true` に更新される実装をしてみましょう。
+
+`lib/functions.dart` に `@CloudFunction()` を用いて `CloudEvent` を引数とする関数を定義します。
+
+```dart
+@CloudFunction()
+Future<void> oncreatesubmission(CloudEvent event, RequestContext context) =>
+    OnCreateSubmissionFunction(
+      firestore: firestore,
+      auth: auth,
+      event: event,
+      context: context,
+    ).call();
+```
+
+下記が処理の内容です。
+
+クライアント SDK とほとんど同じ感覚で Admin SDK による処理を記述することができます。
+
+```dart
+class OnCreateSubmissionFunction {
+  const OnCreateSubmissionFunction({
+    required this.firestore,
+    required this.auth,
+    required this.event,
+    required this.context,
+  });
+
+  final Firestore firestore;
+
+  final Auth auth;
+
+  final CloudEvent event;
+
+  final RequestContext context;
+
+  /// `submissions` コレクションに新たなドキュメントが作成されたときに呼び出される。
+  ///
+  /// そのドキュメントに非 null な `submittedByUserId` が含まれている場合、当該ドキュメント
+  /// の `isVerified` フィールドを `true` に更新する。
+  Future<void> call() async {
+    final documentCreatedEvent = DocumentCreatedEvent.fromCloudEvent(
+      firestore: firestore,
+      event: event,
+    );
+    final documentId = documentCreatedEvent.id;
+    final submittedByUserId =
+        documentCreatedEvent.value.data['submittedByUserId'] as String?;
+    if (submittedByUserId != null) {
+      await firestore
+          .collection('submissions')
+          .doc(documentId)
+          .update({'isVerified': true});
+      context.logger.debug(
+        'submission $documentId submitted by $submittedByUserId is verified',
+      );
+    } else {
+      context.logger.debug(
+        '''submission $documentId is not verified because submittedByUserId is null''',
+      );
+    }
+  }
+}
+```
+
+なお、下記のように `CloudEvent` 型の `event` からドキュメント ID などを取り出せるようにした `DocumentCreatedEvent` の実装は独自のものです。
+
+具体的な内容はサンプルリポジトリを確認してください。
+
+```dart
+final documentCreatedEvent = DocumentCreatedEvent.fromCloudEvent(
+  firestore: firestore,
+  event: event,
+);
+final documentId = documentCreatedEvent.id;
+```
+
+Node.js の SDK では、下記のように記述するだけで、作成されたドキュメントのデータ (`snapshot`) やその他のメタデータ (`context`) を関数内で直ちに利用することができます。
+
+npm の `firebase-functions` パッケージ相当のパッケージは Dart にないので、それとほぼ同等の仕組みのパッケージを近いうちにリリースしたいとも考えています。
+
+```ts
+import * as functions from 'firebase-functions'
+
+export const onCreateSubmission = functions
+    .region(`asia-northeast1`)
+    .firestore.document(`/submissions/{submissionId}`)
+    .onCreate(async (snapshot, context) => {
+        /** 省略 */
+    })
+```
