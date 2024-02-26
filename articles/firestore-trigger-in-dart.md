@@ -818,7 +818,7 @@ final documentId = documentCreatedEvent.id;
 
 Node.js の SDK では、下記のように記述するだけで、作成されたドキュメントのデータ (`snapshot`) やその他のメタデータ (`context`) を関数内で直ちに利用することができます。
 
-npm の `firebase-functions` パッケージ相当のパッケージは Dart にないので、それとほぼ同等の仕組みのパッケージを近いうちにリリースしたいとも考えています。
+npm の `firebase-functions` 相当のパッケージは Dart にないので、それとほぼ同等の仕組みのパッケージを近いうちにリリースしたいとも考えています。
 
 ```ts
 import * as functions from 'firebase-functions'
