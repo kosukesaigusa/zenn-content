@@ -404,7 +404,7 @@ Dart で関数を書いてそれを Cloud Run にデプロイする場合、fire
 
 そこで、ここでは GitHub Actions で、ある程度快適なデプロイワークフローを組む例を示すことにします。
 
-具体的な内容は折りたたんでいるので適宜展開して確認してください。
+具体的な内容の一部は折りたたんでいるので適宜展開して確認してください。
 
 また、ワークフローのサンプルの全体は下記で確認できます。
 
@@ -418,8 +418,6 @@ https://github.com/kosukesaigusa/full_dart_monorepo/tree/main/.github
 
 まず、`.github/actions/services.yml` に下記のように関数名と一緒に `signature_type` や、Firestore トリガー関数の場合には、`event_type` や `path_pattern` を列挙することにします。
 
-:::details .github/actions/services.yml
-
 ```yml
 services:
   - service: hello
@@ -430,11 +428,7 @@ services:
     path_pattern: document=foos/{fooId}
 ```
 
-:::
-
 上記の `services.yml` を下記のような `deploy.yml` でパースして `$GITHUB_OUTPUT` に格納し、`reusable_deploy_workflow.yml` の `services` に渡すようにします。
-
-:::details deploy.yml
 
 ```yml
 jobs:
@@ -465,11 +459,7 @@ jobs:
       services: ${{ needs.set_services.outputs.services }}
 ```
 
-:::
-
 `deploy.yml` から呼び出される `reusable_deploy_workflow.yml` では、下記のようにして、`strategy.matrix` に `.github/actions/services.yml` の内容を反映させます。
-
-:::details reusable_deploy_workflow.yml
 
 ```yml
 on:
@@ -489,11 +479,7 @@ jobs:
         include: ${{ fromJSON(inputs.services) }}
 ```
 
-:::
-
 事前準備として、下記のようにリポジトリと Dart の環境を設定し、`google-github-actions/auth@v2` で Workload Identity を用いて認証をし、`google-github-actions/setup-gcloud@v2` で gcloud SDK のセットアップを済ませます。
-
-:::details reusable_deploy_workflow.yml
 
 ```yml
 # 省略
@@ -523,18 +509,52 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v2'
 ```
 
-:::
+通常、Cloud Run にデプロイするサービス（関数）1 つに対して 1 つの `Dockerfile` が必要ですが、GitHub Actions の CI 中で `Dockerfile.template` から動的に `Dockerfile` を生成するような仕組みを採用してみました。
+
+`Dockerfile.template` に対して与えるべき動的な値は、サービス名 (`matrix.service`)、HTTP 関数か Cloud Event トリガーかを表すシグネチャタイプ (`matrix.signature_type`) です。
+
+CI 中で `sed` コマンドで所定のプレースホルダ部分を置換しています。
+
+```yml
+# 省略
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.services) }}
+
+    steps:
+
+      # 省略
+
+      - name: Generate Dockerfile
+        run: |
+          rm -f Dockerfile
+          sed -e "s/TARGET_PLACEHOLDER/${{ matrix.service }}/" \
+              -e "s/SIGNATURE_TYPE_PLACEHOLDER/${{ matrix.signature_type }}/" \
+              Dockerfile.template > Dockerfile
+          cat Dockerfile
+```
 
 その後、`google-github-actions/deploy-cloudrun@v2` を用いて関数を Cloud Run にデプロイします。
 
 `gcloud run deploy` コマンドを実行するのと同等の内容です。
 
-:::details reusable_deploy_workflow.yml
-
 ```yml
+# 省略
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.services) }}
 
     steps:
 
@@ -552,13 +572,9 @@ jobs:
           secrets: キー名=値:latest
 ```
 
-:::
-
 デプロイした関数が Firestore トリガーならば、それに対応する Eventarc トリガーを作成します。
 
 また、すでに対応するトリガーが作成済みならばスキップするために、`gcloud eventarc triggers describe` で作成済みのトリガー一覧を取得して使用しています。
-
-:::details reusable_deploy_workflow.yml
 
 ```yml
 jobs:
@@ -589,13 +605,9 @@ jobs:
           fi
 ```
 
-:::
-
 さらに、`deploy` ジョブ後の `cleanup` ジョブとして、Cloud Run にデプロイ済みだが `.github/actions/services.yml` にはもう含まれていない関数を削除する処理を行っています。
 
 デプロイ済みの関数は `gcloud run services list --platform managed` で一覧にすることができます。
-
-:::details reusable_deploy_workflow.yml
 
 ```yml
 jobs:
@@ -637,8 +649,6 @@ jobs:
             done
           fi
 ```
-
-:::
 
 ## 実例
 
