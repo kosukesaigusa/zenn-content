@@ -41,3 +41,13 @@ published_at: 2024-08-01 00:00
 ## なぜパッケージに分けるのか
 
 ## Dart と Flutter の境界について
+
+## system パッケージ
+
+## repository パッケージ
+
+## domain パッケージ
+
+## base_ui パッケージ
+
+## app パッケージ
