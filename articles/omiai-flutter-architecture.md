@@ -106,3 +106,30 @@ app → system への依存は、例えば、エントリポイント内の処�
 - 中長期的に、習熟度や技術的なバックグランドに違いがあるメンバーが入れ替わったり、メンバーが増えたりする中で、当初はコード規約やプロジェクトの歴史に詳しい人物による PR レビューで防いでいたような誤った実装が、いつの間にか許されるようになってしまって、ルールが崩壊・形骸化する
 - 上記のような課題が蓄積されたコードベースでは、新たな実装や既存実装の変更をするたびに、本来確認する必要のないはずのコンテキストや影響範囲の調査を強いられたり（そして、実行してみないとその調査結果に確信を持つのが難しい場合も多い）、ユニットテストが充実していない既存実装を変更するのに怖怖としたりする。結果、本来行うべき実装や変更に集中できず、開発生産性が上がらない
 
+## Flutter の世界と Dart の世界
+
+他にも、下記のような「Flutter か Dart か」という観点や、依存するパッケージの例を整理すると下表のようになります。
+
+| パッケージ | Flutter か Dart か | （直接的に）依存するパッケージの例 |
+| ---- | ---- | ---- |
+| app | Flutter | • domain <br> • base_ui <br> • hooks_riverpod <br> • auto_route |
+| base_ui | Flutter | • extended_image <br> • flutter_gen_runner <br> • flutter_svg |
+| domain | Dart | • repository <br> • riverpod |
+| repository | Dart | • system <br> • riverpod |
+| system | Dart | • dio <br> • shared_preferences |
+
+「Flutter か Dart か」というのは、ざっくり言うと「Flutter か Dart かどちらの世界を意識するべきパッケージか」を表しています。
+
+repository は SharedPreferences に、system は Firebase などに依存するので、「Dart の世界」ばかりを意識するはずの domain パッケージや repository パッケージも、transitive には Flutter に依存しますが、direct には依存しません。
+
+たとえば、Dart の世界であるはずのモデルクラスのメソッドの引数として、Flutter の世界の `BuildContext` 型が定義されているような例を見かけたことがある方もいるかもしれません（基本的な間違いのようにも思いますが、昔の手探りで Flutter を始めたプロジェクトでは見かけることもよくあります）。
+
+Omiai 社内の Flutter 経験のないエンジニア（iOS やサーバサイドのエンジニア）で、Flutter のプロジェクトにも挑戦してもらうことになるメンバーに説明してみると、
+
+> ウィジェットの組み方やウィジェットツリーの概念に習熟しないうちは、app や base_ui の実装に慣れるには時間がかかりそうだが、domain や repository の実装については、Dart 言語や、必要最低限の Riverpod の書き方や知識にさえキャッチアップすれば、比較的スムーズに開発に参画できそう
+
+といった趣旨のフィードバックも得られました。
+
+「いま自分は Flutter エンジニアとしてコードを書いているのか、Dart エンジニアとしてコードを書いているのか」という意識は重要です。
+
+Omiai の Flutter プロジェクトでは、状態管理や依存性の注入のために Riverpod をフル活用していますが、それぞれのパッケージで、Flutter の世界である hooks_riverpod (flutter_riverpod) に依存するか、Dart の世界である riverpod に依存するかを区別しているのも小さなこだわりです。
