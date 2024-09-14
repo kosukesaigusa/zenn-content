@@ -116,11 +116,11 @@ app → system への依存は、例えば、エントリポイント内の処�
 | base_ui | Flutter | • extended_image <br> • flutter_gen_runner <br> • flutter_svg |
 | domain | Dart | • repository <br> • riverpod |
 | repository | Dart | • system <br> • riverpod |
-| system | Dart | • dio <br> • shared_preferences |
+| system | Dart (,Flutter) | • dio <br> • shared_preferences <br> • firebase_analytics |
 
 「Flutter か Dart か」というのは、ざっくり言うと「Flutter か Dart かどちらの世界を意識するべきパッケージか」を表しています。
 
-repository は SharedPreferences に、system は Firebase などに依存するので、「Dart の世界」ばかりを意識するはずの domain パッケージや repository パッケージも、transitive には Flutter に依存しますが、direct には依存しません。
+たとえば、system は SharedPreferences や Firebase などに依存するので、「Dart の世界」ばかりを意識するはずの repository パッケージや domain パッケージも、transitive には Flutter に依存しますが、direct には依存しません。
 
 たとえば、Dart の世界であるはずのモデルクラスのメソッドの引数として、Flutter の世界の `BuildContext` 型が定義されているような例を見かけたことがある方もいるかもしれません（基本的な間違いのようにも思いますが、昔の手探りで Flutter を始めたプロジェクトでは見かけることもよくあります）。
 
