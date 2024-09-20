@@ -62,9 +62,7 @@ Omiai の Flutter プロジェクトを紹介する最初の記事として、�
 
 Omiai の Flutter プロジェクトでは、まずは Layer の違い（プレゼンテーションとドメインの分離や、許可される依存の明示）を強く意識してパッケージ自体を分離し、各 Layer においては、いわゆる Feature ごとのような方法でディレクトリを分離する方法を採用しました。
 
-大きくは、以下のような方法でパッケージを分類しています。
-
-命名はこれまでに経験したり、見たりしてきたプロジェクトを参考に、既存メンバーにも違和感のないものにしています。
+主なパッケージは以下のように分類し、命名はこれまでに経験したり、見たりしてきたプロジェクトを参考に、既存メンバーにも違和感の少ないものにしています。
 
 | パッケージ | 説明 |
 | ---- | ---- |
@@ -74,31 +72,36 @@ Omiai の Flutter プロジェクトでは、まずは Layer の違い（プレ�
 | repository | データソース（自社の API サーバーやローカルストレージなど）とのやり取りを記述する |
 | system | 3rd パーティのツールをラップして腐敗防止層のような役割をしたり、その他の基礎的・汎用的な処理を記述したりする（例：HTTP クライアント、Shared Preferences, Firebase Analytics など） |
 
+他にも下記のようなパッケージを用意しています。
+
+| パッケージ | 説明 |
+| ---- | ---- |
+| util | 全パッケージ共通で利用することができる汎用的な実装を記述する |
+| dependency_provider | Riverpod を使用して、`Unimplemented` なインターフェースのみを定義する。これにより、以下のような依存性注入が可能になる。 <br> <br> • 実際のアプリ実行時：`app` パッケージの Flutter エントリポイント直後で、`ProviderScope.overrides` を使用して実際の機能を持つインスタンスを注入する <br> • テスト時：各パッケージの test で、`ProviderContainer.overrides` などを使用してモックインスタンスを注入する |
+
 :::message
 domain（ドメイン）の言葉の使い方は「[Android Developers > 開発 > ガイド > ドメインレイヤ](https://developer.android.com/topic/architecture/domain-layer?hl=ja)」に近いです。
 
 system のパッケージ名は、それほど一般的または典型的ではないかもしれませんが、これまでに経験したプロジェクトを参考にしています。core, service, infrastructure のような命名もあり得るかもしれません。
 :::
 
-:::message
-実際には他にも、ロギングなどの全パッケージ共通で利用する汎用的な実装を記述する `util` パッケージや、repository 層で API サーバとの通信時に利用したい認証情報などのインターフェースを定義し、app パッケージで注入できるようにする dependency_provider と命名したパッケージなども存在します。
-:::
-
 ## パッケージを分離する
 
-それぞれのパッケージが許す依存の向きを簡略化して表すと下図の通りです。
+それぞれのパッケージが許す依存の向きを簡略化して表すと下図の通りです（`util` パッケージは省略しています）。
 
 ```mermaid
 graph TD
     A[app] --> B[base_ui]
     A --> C[domain]
-    A --> D[system]
+    A --> G[dependency_provider]
     C --> F[repository]
-    F --> D
+    F --> D[system]
+    F --> G
+    G --> D
 ```
 
 :::message
-app → system への依存は、例えば、エントリポイント内の処理で FLAVOR 等の環境に応じた HTTP クライアントや Shared Preferences のインスタンスを生成し、Unimplemented なインターフェースのみを提供する Repository の `Provider` を Riverpod の `ProviderScope.overrides` で上書きすることで、アプリの実行時の振る舞いを定義する目的などで定義しています。app → system の直接的な依存を避けたければ、それらをラップした依存性の注入のための別のパッケージを定義することも考えられるかもしれません。
+`app` → `dependency_provider` への依存は、例えば、Flutter のエントリポイント内の処理で FLAVOR 等の環境に応じた HTTP クライアントのインスタンスを生成し、`Unimplemented` なインターフェースのみを提供する `dependency_provider` の `Provider` を Riverpod の `ProviderScope.overrides` で上書きすることで、アプリの実行時の振る舞いを定義する目的などで定義しています。
 :::
 
 パッケージを分離し、依存を許可するパッケージの関係を厳密に定義することで、各パッケージの責務を明確にして、パッケージ間の結合を疎にし、依存を間違えた実装を防ぐことができます。
@@ -109,7 +112,7 @@ app → system への依存は、例えば、エントリポイント内の処�
 
 - 特に多くの箇所から利用される基盤のような実装が、依存して良い相手を誤ることで負債化し、修正を試みても影響範囲が大きいため修正困難な状況に陥る
 - 本来許されない、または不要なはずのモジュールに依存した実装に対して、ユニットテストを書いたりメンテナンスしたりするコストが高くなる
-- 中長期的に、習熟度や技術的なバックグランドに違いがあるメンバーが入れ替わったり、メンバーが増えたりする中で、当初はコード規約やプロジェクトの歴史に詳しい人物による PR レビューで防いでいたような誤った実装が、いつの間にか許されるようになってしまって、ルールが崩壊・形骸化する
+- 中長期的に、習熟度や技術的なバックグランドに違いがあるメンバーが入れ替わる中で、当初はコード規約やプロジェクトの歴史に詳しい人物による PR レビューで防げていた誤った実装が、いつの間にか許されるようになってしまって、ルールが崩壊・形骸化する
 - 上記のような課題が蓄積されたコードベースでは、新たな実装や既存実装の変更をするたびに、本来確認する必要のないはずのコンテキストや影響範囲の調査を強いられたり（そして、実行してみないとその調査結果に確信を持つのが難しい場合も多い）、ユニットテストが充実していない既存実装を変更するのに怖怖としたりする。結果、本来行うべき実装や変更に集中できず、開発生産性が上がらない
 
 ## Flutter の世界と Dart の世界
@@ -118,11 +121,13 @@ app → system への依存は、例えば、エントリポイント内の処�
 
 | パッケージ | Flutter か Dart か | （直接的に）依存するパッケージの例 |
 | ---- | ---- | ---- |
-| app | Flutter | • domain <br> • base_ui <br> • hooks_riverpod <br> • auto_route |
+| app | Flutter | • domain <br> • base_ui <br> • dependency_provider <br> • hooks_riverpod <br> • auto_route |
 | base_ui | Flutter | • extended_image <br> • flutter_gen_runner <br> • flutter_svg |
 | domain | Dart | • repository <br> • riverpod |
 | repository | Dart | • system <br> • riverpod |
 | system | Dart (,Flutter) | • dio <br> • shared_preferences <br> • firebase_analytics |
+| util | Dart | - |
+| dependency_provider | Dart | • system <br> • riverpod |
 
 「Flutter か Dart か」というのは、ざっくり言うと「Flutter か Dart かどちらの世界を意識するべきパッケージか」を表しています。
 
