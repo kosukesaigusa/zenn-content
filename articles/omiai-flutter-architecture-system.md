@@ -25,9 +25,11 @@ Omiai の Flutter プロジェクトのパッケージ構成は下図の通り�
 graph TD
     A[app] --> B[base_ui]
     A --> C[domain]
-    A --> D[system]
+    A --> G[dependency_provider]
     C --> F[repository]
-    F --> D
+    F --> D[system]
+    F --> G
+    G --> D
 ```
 
 :::message
