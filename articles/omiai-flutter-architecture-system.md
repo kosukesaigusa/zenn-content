@@ -13,7 +13,7 @@ published_at: 2024-09-27 00:00
 
 以前の「Omiai の Flutter プロジェクトのアーキテクチャ」という記事：
 
-@[card](https://zenn.com/kosukesaigusa/articles/omiai-flutter-architecture)
+@[card](https://zenn.dev/kosukesaigusa/articles/omiai-flutter-architecture)
 
 の続編として、system パッケージの具体的な実装内容について紹介します。
 
