@@ -15,7 +15,7 @@ published_at: 2024-09-27 00:00
 
 @[card](https://zenn.dev/kosukesaigusa/articles/omiai-flutter-architecture)
 
-の続編として、system パッケージの具体的な実装内容について紹介します。
+の続編として、`system` パッケージの具体的な実装内容について紹介します。
 
 ## system パッケージ
 
@@ -33,10 +33,10 @@ graph TD
 ```
 
 :::message
-system のパッケージ名は、それほど一般的または典型的ではないかもしれませんが、これまでに経験したプロジェクトを参考にしています。core, service, infrastructure のような命名もあり得るかもしれません。
+`system` のパッケージ名は、それほど一般的または典型的ではないかもしれませんが、これまでに経験したプロジェクトを参考にしています。core, service, infrastructure のような命名もあり得るかもしれません。
 :::
 
-system パッケージでは、3rd パーティのツールをラップして腐敗防止層のような役割をしたり、その他の基礎的・汎用的な処理を記述したりします（例：HTTP クライアント、Shared Preferences, Firebase Analytics など）。
+`system` パッケージでは、3rd パーティのツールをラップして腐敗防止層のような役割をしたり、その他の基礎的・汎用的な処理を記述したりします（例：HTTP クライアント、Shared Preferences, Firebase Analytics など）。
 
 そうすることで、`system` よりも図の中で上側のパッケージでは、direct にそれらの 3rd パーティのツールに依存することがなくなります。
 
