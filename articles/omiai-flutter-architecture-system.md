@@ -145,3 +145,128 @@ class FirebaseAnalyticsClient {
 }
 ```
 
+## HTTP クライアントの例
+
+`HttpClient` を実装する前に `HttpResponse` クラスを定義します。
+
+HTTP レスポンスの成功、失敗を freezed の sealed class で表現するクラスです。
+
+後述の `HttpClient` では `dio` パッケージを利用しますが、HTTP のエラーレスポンスが返された場合には、`dio` パッケージで定義されている `DioException` 型の例外が発生します。
+
+- `system` パッケージを利用するパッケージでは、`dio` パッケージに直接依存せずに例外ハンドリングしたい
+- 静的解析のレベルで、HTTP レスポンスの成功、失敗をそれぞれハンドリングすることを強制したい
+
+という理由から、Dart の本来の例外型をスローするのではなく、sealed class で表現した `HttpResponse` クラスのインスタンスを返すようにしています。
+
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'http_response.freezed.dart';
+
+/// HTTP レスポンスの成功失敗を freezed の sealed class でまとめて表現するクラス。
+@freezed
+sealed class HttpResponse<T extends dynamic> with _$HttpResponse<T> {
+  /// 成功時のレスポンス。
+  ///
+  /// - [data] は HTTP のレスポンスボディ。
+  /// - [headers] は HTTP のレスポンスヘッダ。
+  const factory HttpResponse.success({
+    required T data,
+    required Map<String, List<String>> headers,
+  }) = SuccessHttpResponse<T>;
+
+  /// 失敗時のレスポンス。
+  ///
+  /// - [data] は存在する場合の HTTP のレスポンスボディ（エラーレスポンスでは一般にレスポンス
+  /// ボディが存在しない場合もあるので任意）。
+  /// - [e] は HTTP リクエスト時に発生した例外。
+  /// - [status] は HTTP エラーの種別。
+  const factory HttpResponse.failure({
+    T? data,
+    required Object e,
+    required ErrorStatus status,
+  }) = FailureHttpResponse<T>;
+}
+
+/// HTTP レスポンスの主なエラーの種別を表現する列挙型。
+enum ErrorStatus {
+  /// 400 Bad Request に対応するエラー。
+  badRequest,
+
+  /// 401 Unauthorized に対応するエラー。
+  unauthorized,
+
+  /// 403 Forbidden に対応するエラー。
+  forbidden,
+
+  /// 404 Not Found に対応するエラー。
+  notFound,
+
+  /// 500 Internal Server Error に対応するエラー。
+  internalServerError,
+
+  /// 503 Service Unavailable に対応するエラー。
+  serviceUnavailable,
+
+  /// その他のエラー。
+  unknown,
+  ;
+}
+```
+
+`HttpClient` で利用する `dio` パッケージに依存した `DioHttpClient` は下記のように定義します。
+
+dio パッケージの README の [Extends Dio class](https://pub.dev/packages/dio#extends-dio-class) を参照してください。
+
+```dart
+class DioHttpClient with DioMixin implements Dio { /** 省略 */ }
+```
+
+`HttpClient` クラスの実装は一部省略していますが、下記の通りです。
+
+`DioHttpClient` の `request` メソッドを呼び出して HTTP リクエストを行い下記のように結果をハンドリングします。
+
+| 結果 | 処理 |
+| ---- | ---- |
+| 成功 | 成功レスポンスを格納した `HttpResponse.success` を返す |
+| 失敗（`DioException` が発生） | `_httpResponseFromDioException` メソッドを通じて、失敗レスポンスを格納した `HttpResponse.failure` を返す |
+| 失敗（その他の例外が発生） | 失敗レスポンスを格納した `HttpResponse.failure` を返す |
+
+`_httpResponseFromDioException` メソッド内では、`DioException` からステータスコードやレスポンスデータなどもとに `HttpResponse.failure` を生成します。
+
+```dart
+/// HTTP リクエストを行うクライアントクラス。
+class HttpClient {
+  /** 省略 */
+
+  /// Dio の HTTP クライアントインスタンス。
+  final DioHttpClient _client;
+
+  /// HTTP リクエストを行う。
+  ///
+  /// 返り値は [HttpResponse] であり、リクエストが成功した場合は [HttpResponse.success]
+  /// が返る。
+  ///
+  /// リクエストが失敗した場合は、利用する側で dio パッケージに直接依存して [DioException] を
+  /// 直接扱わないで済むように、[DioException] および [Exception] は内部でキャッチして、
+  /// [HttpResponse.failure] を返す。
+  Future<HttpResponse<dynamic>> request(/** 省略 */) async {
+    try {
+      final response = await _client.request<dynamic>(/** 省略 */);
+      return HttpResponse.success(
+        data: response.data,
+        headers: response.headers.map,
+      );
+    } on DioException catch (e) {
+      return _httpResponseFromDioException(e);
+    } on Exception catch (e) {
+      logger.e(e);
+      return HttpResponse.failure(e: e, status: ErrorStatus.unknown);
+    }
+  }
+
+  /// [DioException] から [HttpResponse.failure] を生成する。
+  HttpResponse<dynamic> _httpResponseFromDioException(DioException e) {/**  省略 */}
+}
+```
+
