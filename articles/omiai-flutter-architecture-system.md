@@ -270,3 +270,17 @@ class HttpClient {
 }
 ```
 
+HTTP クライアントを利用する側では下記の様に `HttpResponse` の成功、失敗を `switch` でハンドリングすることを強制されます。
+
+```dart
+Future</** 省略 */> doSomething() async {
+  final response = await httpClient.request(/** 省略 */);
+  switch (response) {
+    case SuccessHttpResponse(:final data, :final headers):
+      /** 省略 */
+    case FailureHttpResponse(: final data, :final e, :final status):
+      /** 省略 */
+  }
+}
+```
+
