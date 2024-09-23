@@ -52,7 +52,7 @@ graph TD
 
 以下で具体的な実装内容やそのような実装にしている背景を説明します。
 
-## Firebase Analytics の例
+## Firebase Analytics の実装例
 
 下記は `firebase_analytics` パッケージの `FirebaseAnalytics` クラスをほとんどラップしただけのクラスです。
 
@@ -145,7 +145,7 @@ class FirebaseAnalyticsClient {
 }
 ```
 
-## HTTP クライアントの例
+## HTTP クライアントの実装例
 
 `HttpClient` を実装する前に `HttpResponse` クラスを定義します。
 
