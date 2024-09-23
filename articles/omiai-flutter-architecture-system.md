@@ -165,7 +165,7 @@ part 'http_response.freezed.dart';
 
 /// HTTP レスポンスの成功失敗を freezed の sealed class でまとめて表現するクラス。
 @freezed
-sealed class HttpResponse<T extends dynamic> with _$HttpResponse<T> {
+sealed class HttpResponse<T> with _$HttpResponse<T> {
   /// 成功時のレスポンス。
   ///
   /// - [data] は HTTP のレスポンスボディ。
