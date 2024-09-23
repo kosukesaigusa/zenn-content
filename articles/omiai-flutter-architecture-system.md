@@ -147,7 +147,7 @@ class FirebaseAnalyticsClient {
 
 ## HTTP クライアントの実装例
 
-`HttpClient` を実装する前に `HttpResponse` クラスを定義します。
+`HttpClient` の実装例を紹介する前に `HttpResponse` クラスを定義します。
 
 HTTP レスポンスの成功、失敗を freezed の sealed class で表現するクラスです。
 
