@@ -163,7 +163,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'http_response.freezed.dart';
 
-/// HTTP レスポンスの成功失敗を freezed の sealed class でまとめて表現するクラス。
+/// HTTP レスポンスの成功・失敗を freezed の sealed class でまとめて表現するクラス。
 @freezed
 sealed class HttpResponse<T> with _$HttpResponse<T> {
   /// 成功時のレスポンス。
@@ -193,20 +193,7 @@ enum ErrorStatus {
   /// 400 Bad Request に対応するエラー。
   badRequest,
 
-  /// 401 Unauthorized に対応するエラー。
-  unauthorized,
-
-  /// 403 Forbidden に対応するエラー。
-  forbidden,
-
-  /// 404 Not Found に対応するエラー。
-  notFound,
-
-  /// 500 Internal Server Error に対応するエラー。
-  internalServerError,
-
-  /// 503 Service Unavailable に対応するエラー。
-  serviceUnavailable,
+  /** 省略 */
 
   /// その他のエラー。
   unknown,
