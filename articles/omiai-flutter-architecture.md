@@ -180,4 +180,4 @@ Omiai の Flutter プロジェクトでは、状態管理や依存性の注入�
 
 ぜひご覧ください！
 
-[@card](https://zenn.dev/omiai_techblog/articles/omiai-flutter-architecture-system)
+@[card](https://zenn.dev/omiai_techblog/articles/omiai-flutter-architecture-system)
