@@ -55,7 +55,7 @@ graph TD
 
 ## RepositoryResult の例
 
-`RepositoryResult` は、Repository による通信結果の成功、失敗をを freezed の sealed class で表現するクラスです。
+`RepositoryResult` は、Repository による通信結果の成功、失敗を freezed の sealed class で表現するクラスです。
 
 ```dart
 import 'package:freezed_annotation/freezed_annotation.dart';
