@@ -94,6 +94,8 @@ enum FailureRepositoryResultReason {
 
 ## Dto の例
 
+Dto では、HTTP レスポンスのインターフェース相当のデータ型を定義します。
+
 ## Repository の例
 
 たとえば HTTP 通信を行う部分については、`system` で定義した `HttpClient` の `Unimplemented` なインターフェースを `dependency_provider` パッケージに定義しておいて、`repository` パッケージではそれを通じて HTTP 通信を行うようにします。
