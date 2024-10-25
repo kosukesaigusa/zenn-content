@@ -96,6 +96,10 @@ enum FailureRepositoryResultReason {
 
 Dto では、HTTP レスポンスのインターフェース相当のデータ型を定義します。
 
+Open API 仕様のドキュメントがあれば openapi_generator などで自動生成することもできるかもしれません。
+
+しかし、Omiai では、長年の開発・運用の歴史から、サーバサイドの技術的負債も、特に API レスポンスの仕様には常に付きまとってきます。
+
 ## Repository の例
 
 たとえば HTTP 通信を行う部分については、`system` で定義した `HttpClient` の `Unimplemented` なインターフェースを `dependency_provider` パッケージに定義しておいて、`repository` パッケージではそれを通じて HTTP 通信を行うようにします。
