@@ -100,6 +100,8 @@ Open API 仕様のドキュメントがあれば openapi_generator などで自�
 
 しかし、Omiai では、長年の開発・運用の歴史から、サーバサイドの技術的負債も、特に API レスポンスの仕様には常に付きまとってきます。
 
+freezed と json_serializable を用いて API レスポンスを基本的にはその仕様に忠実に表現したり、`JsonKey` を用いてフィールド名の変更や、各種の `JsonConverter` を利用して型の変換などを行ったりします。
+
 ## Repository の例
 
 たとえば HTTP 通信を行う部分については、`system` で定義した `HttpClient` の `Unimplemented` なインターフェースを `dependency_provider` パッケージに定義しておいて、`repository` パッケージではそれを通じて HTTP 通信を行うようにします。
