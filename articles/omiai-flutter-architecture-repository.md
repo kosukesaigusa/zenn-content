@@ -103,7 +103,7 @@ Open API 仕様のドキュメントがあれば openapi_generator などで自�
 freezed と json_serializable を用いて API レスポンスを基本的にはその仕様に忠実に表現したり、`JsonKey` を用いてフィールド名の変更や、各種の `JsonConverter` を利用して型の変換などを行ったりします。
 
 ```dart
-
+@freezed
 ```
 
 ## Repository の例
