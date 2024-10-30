@@ -104,6 +104,7 @@ freezed と json_serializable を用いて API レスポンスを基本的には
 
 ```dart
 @freezed
+class FooDto extends _$FooDto {}
 ```
 
 ## Repository の例
