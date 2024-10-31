@@ -111,6 +111,14 @@ class FooDto extends _$FooDto {}
 
 たとえば HTTP 通信を行う部分については、`system` で定義した `HttpClient` の `Unimplemented` なインターフェースを `dependency_provider` パッケージに定義しておいて、`repository` パッケージではそれを通じて HTTP 通信を行うようにします。
 
+```dart
+class FooTepository {
+  const Repository(_this.ref);
+
+  final Ref _ref;
+}
+```
+
 ## おわりに
 
 この記事では、Omiai の Flutter プロジェクトのアーキテクチャ紹介の続編として、データソース（自社の API サーバーやローカルストレージなど）とのやり取りを記述する `repository` パッケージについて説明しました。
