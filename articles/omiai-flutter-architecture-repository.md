@@ -4,13 +4,10 @@ emoji: "🗄️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter"]
 published: false
-# published_at: 2024-12-31 00:00
 publication_name: "omiai_techblog"
 ---
 
 ## この記事について
-
-株式会社 Omiai の Flutter テックリードの [@kosukesaigusa](https://github.com/kosukesaigusa) です。
 
 以前の「Omiai の Flutter プロジェクトのアーキテクチャ」という記事：
 
