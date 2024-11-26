@@ -54,6 +54,10 @@ graph TD
 
 `RepositoryResult` は、Repository による通信結果の成功、失敗を freezed の sealed class で表現するクラスです。
 
+[前回の system パッケージの記事](https://zenn.dev/kosukesaigusa/articles/omiai-flutter-architecture-system) で定義した `HTTPResponse` も同様に sealed class で定義しているのもあり、Repository による通信結果も同様に定義することにしています。
+
+これにより、Repository のメソッドを呼び出す domain 層では、業務知識や仕様に従って通信結果の成功・失敗をハンドリングすることが強制されます。
+
 ```dart
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -81,9 +85,9 @@ sealed class RepositoryResult<T> with _$RepositoryResult<T> {
 
 /// HTTP のステータスコードに対応する失敗理由を表す列挙型。
 enum FailureRepositoryResultReason {
-  /// 401 Unauthorized.
-  unauthorized,
-
+  /// 400 Bad Request.
+  badRequest,
+  
   /** 省略 */
   ;
 }
