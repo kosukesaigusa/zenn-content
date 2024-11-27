@@ -105,8 +105,25 @@ freezed と json_serializable を用いて API レスポンスを基本的には
 
 ```dart
 @freezed
-class FooDto extends _$FooDto {}
+class FooDto with _$FooDto {
+  const factory FooDto({
+    // ...のID.
+    required int someId,
+    // ...のフィールド名。
+    @JsonKey(name: 'inappropriate_field_name') required String someFieldName,
+    // ...一覧。
+    @Default([]) List<String> things,
+    // ...かどうか。
+    @flexibleBoolConverter required bool isSomething,
+    // ...の日時。
+    @flexibleDateTimeConverter required DateTime someDateTime,
+
+  }) = _FooDto;
+
+  factory FooDto.fromJson(Map<String, dynamic> json) => _$FooDtoFromJson(json);
+}
 ```
+
 
 ## Repository の例
 
