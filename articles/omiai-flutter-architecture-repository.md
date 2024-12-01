@@ -146,14 +146,66 @@ DB のテーブル定義やサーバサイドで用いる業務概念やデー�
 
 ## Repository の例
 
-たとえば HTTP 通信を行う部分については、`system` で定義した `HttpClient` の `Unimplemented` なインターフェースを `dependency_provider` パッケージに定義しておいて、`repository` パッケージではそれを通じて HTTP 通信を行うようにします。
+Repository の実装例は下記の通りです。
+
+`httpClientProvider` を通じて、`system` パッケージに定義した `HttpClient` のインスタンスを用いて HTTP リクエストをします。
+
+`HttpClient` による通信結果は `HttpResponse` として Result 型相当の sealed class で返ってくるので、その成功・失敗を switch 文でハンドリングすることが強制されます。
+
+得られたレスポンスボディの json を `Dto` に変換して返すのを Repository の責務としています。
 
 ```dart
-class FooTepository {
-  const Repository(_this.ref);
+/// [TodoRepository] クラスのインスタンスを提供する。
+@riverpod
+TodoRepository todoRepository(TodoRepositoryRef ref) => TodoRepository(ref);
+
+/// Todo の通信を行うためのリポジトリ。
+class TodoRepository {
+  /// Todo の通信を行うためのリポジトリを生成する。
+  const TodoRepository(this._ref);
 
   final Ref _ref;
+
+  /// 指定した [todoId] の Todo を取得する。
+  Future<RepositoryResult<TodoDto>> fetchTodo({required int todoId}) async {
+    final response = await _ref.read(httpClientProvider).request(/** 省略 */);
+    switch (response) {
+      case SuccessHttpResponse(:final data):
+        final json = data as Map<String, dynamic>;
+        final dto = TodoDto.fromJson(json);
+        return RepositoryResult.success(dto);
+      case FailureHttpResponse(:final data, :final e):
+        final json = data as Map<String, dynamic>;
+        final errorDto = ErrorDto.fromJson(json);
+        return RepositoryResult.failure(e, errorDto: errorDto);
+    }
+  }
 }
+```
+
+:::message
+実際には、`httpClientProvider` を通じて得られる `HttpClient` は直接利用するのではなく、それをラップした、アクセストークンやリクエストヘッダの差し込みやリクエスト・レスポンスの難読化などの共通処理を行うヘルパークラスを Provider を通じて取得して利用しています。
+:::
+
+`httpClientProvider` は、`system` パッケージで定義した `HttpClient` のインスタンスを提供するものですが、`dependency_provider` パッケージに `Unimplemented` なインターフェースとして定義したものを利用します。
+
+そうすることで、
+
+- 実際のアプリの実行環境では、`app` パッケージで得られる FLAVOR 等の環境に応じた HTTP クライアントに
+- ユニットテストでは、その状況にしたがったモックインスタンスに
+
+挙動を切り替えることができるようになります。
+
+```dart
+/// [HttpClient] を提供する。
+///
+/// 実際のアプリやユニットテストなどの動作環境によって適切な `ProviderScope` でオーバーライド
+/// して使用される。
+@riverpod
+HttpClient httpClient(HttpClientRef _) => throw UnimplementedError();
+
+/// [HttpClient] を作成する。
+HttpClient getHttpClient(/** 省略 */) => HttpClient(/** 省略 */);
 ```
 
 ## おわりに
