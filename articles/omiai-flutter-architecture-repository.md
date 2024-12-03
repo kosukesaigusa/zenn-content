@@ -3,7 +3,7 @@ title: "【repository パッケージ】Omiai の Flutter プロジェクトの�
 emoji: "🗄️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter"]
-published: false
+published: true
 publication_name: "omiai_techblog"
 ---
 
