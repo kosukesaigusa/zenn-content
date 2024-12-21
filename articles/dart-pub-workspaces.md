@@ -3,7 +3,8 @@ title: "Pub workspaces (monorepos support) を触ってみた"
 emoji: "🚀"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Dart", "Flutter"]
-published: false
+published_at: 2024-12-22 00:00
+published: true
 ---
 
 :::message
