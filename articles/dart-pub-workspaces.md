@@ -467,3 +467,56 @@ class CounterViewModel extends _$CounterViewModel {
 }
 ```
 
+## Pub workspaces における依存関係の解決
+
+上記の構成では、たとえば `shared_preferences` パッケージは `service` パッケージと `injection` パッケージの依存関係に表れています。
+
+ためしに、片方を互換性のないバージョンにしてみます。
+
+```yaml
+dependencies:
+  shared_preferences: ^0.5.13+2
+```
+
+そうすると、下記のように依存関係の解決に失敗します。
+
+Pub workspaces (monorepos support) のドキュメントにも記述されている通り、ワークスペース内のパッケージ間に非互換性がある場合には、パッケージを使い始めるときではなく、`pubspec.yaml` を変更し、`dart pub get` を行った時点で依存関係の解決に失敗し、その時点で修正を行うことを強制してくれます。
+
+```sh
+$ dart pub get
+Resolving dependencies... 
+Because service depends on shared_preferences ^2.3.4 and injection depends on shared_preferences ^0.5.13+2, version solving failed.
+Failed to update packages.
+```
+
+[Melos の Shared Dependencies](https://melos.invertase.dev/commands/bootstrap#shared-dependencies) 機能のように、ワークスペース内で共通して利用しているパッケージバージョンを、指定した内容で一括上書きするような機能はありません。
+
+`dart pub get` を行い、ワークスペース内の依存関係の解決に成功した結果得られるプロジェクトルートの `pubspec.lock` と `.dart_tool/package_config.json` に、そのワークスペースに関する依存情報のすべてが集約されます。
+
+## CI
+
+`flutter (dart) pub get` を一度行うだけで、ワークスペース内の各パッケージの依存関係が解決されるので、Melos を利用する場合よりも少しだけ CI がシンプルになります。
+
+サンプルプロジェクトにも小さなサンプルを用意したので、興味がある方は参考にしてください。
+
+https://github.com/kosukesaigusa/pub-workspaces-sample/blob/b1136e10331b2ed6379dd8093f2b6df4bdf362cf/.github/actions/setup/action.yml#L48-L51
+
+## その他
+
+Melos では、[ドキュメント](https://melos.invertase.dev/) にたくさんの機能が紹介されているように、
+
+- 各パッケージに対して同じコマンドを順次、または並行して実行するようなスクリプトを定義・実行できるようなタスクランナーのような機能
+- 各コマンドを実行するパッケージを便利にフィルタする機能
+- パッケージ開発者には嬉しい publish や version 関係のコマンド
+
+などが多く提供されていますが、そのような機能は現在の Pub workspaces ではスコープ外です。
+
+個人的には、Melos の機能を多く上手に使いこなしているプロジェクトでもなければ、タスクランナー相当の機能は Makefile 等で適当に補いつつ、今後は Dart 公式の Pub workspaces を利用するようにしていくようにして良さそうだと思いました。
+
+## おわりに
+
+この記事では、2024 年の Flutter アドベントカレンダーとして、ちょうどこの年末に発表された Dart の Pub workspaces について紹介しました。
+
+ぜひ、みなさんの Flutter, Dart プロジェクトでも活用してみてください！
+
+https://github.com/kosukesaigusa/pub-workspaces-sample
