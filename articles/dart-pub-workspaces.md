@@ -113,3 +113,357 @@ cd packages/package_a
 dart pub publish
 ```
 
+## サンプルプロジェクト
+
+Pub workspaces (monorepos support) を利用したサンプルプロジェクトとして、先日 Flutter 公式から公開された Architecting Flutter apps に似た構成のカウンターアプリを実装しました。
+
+@[card](https://docs.flutter.dev/app-architecture)
+
+![mvvm](https://github.com/user-attachments/assets/a5134f3d-6405-47ca-9b40-b754bbd558bf)
+
+本サンプルプロジェクトでは、下記のような構成で各レイヤーをパッケージに分けて実装しました。なお、Riverpod を利用するなど、実装方法については、私や皆さんが現場で利用することが多いであろう方法に合わせて Architecting Flutter apps から少し変更している部分があります。
+
+内容としては、
+
+- UI 上に現在のカウント値を表示し、カウントを増加させたり、クリアさせたりできる
+- カウント値は Shared Preferences に永続化される
+
+といった極めてシンプルなものです。
+
+https://github.com/kosukesaigusa/pub-workspaces-sample
+
+![counter](https://github.com/user-attachments/assets/53b83148-59af-4c39-82b2-3a07d3403d76)
+
+| パッケージ | 実装内容 |
+| ---- | ---- |
+| app | UI レイヤー（View と ViewModel）を実装する。 |
+| repository | データソースとのやり取りを記述する。データソースの種類については app に表出させない。 |
+| service | アプリケーションの最下層で、HTTP のエンドポイントやローカルファイルへのアクセスをラップする。 |
+| injection | 依存性の注入を助ける。 |
+
+```mermaid
+graph TD
+    A[app] --> B[injection]
+    A --> C[repository]
+    C --> B
+    C --> D[service]
+```
+
+### service パッケージ
+
+`service` パッケージ は `shared_preferences` パッケージのみに依存します。
+
+```yaml
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  shared_preferences: ^2.3.4
+```
+
+Shared Preferences をラップした `SharedPreferencesService` クラスを実装します。
+
+```dart
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// A service for shared preferences.
+class SharedPreferencesService {
+  /// Constructs a new [SharedPreferencesService].
+  SharedPreferencesService(this._sharedPreferencesAsync);
+
+  final SharedPreferencesAsync _sharedPreferencesAsync;
+
+  /// Gets an integer from shared preferences.
+  Future<int?> getInt(String key) => _sharedPreferencesAsync.getInt(key);
+
+  /// Sets an integer in shared preferences.
+  Future<void> setInt(String key, int value) async =>
+      _sharedPreferencesAsync.setInt(key, value);
+
+  /// Removes a key from shared preferences.
+  Future<void> remove(String key) async => _sharedPreferencesAsync.remove(key);
+}
+```
+
+### repository パッケージ
+
+`repository` パッケージ は `injection` パッケージに依存し、`injection` パッケージのインターフェースを経由して `SharedPreferencesService` を利用します。
+
+```yaml
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  freezed_annotation: ^2.4.4
+  injection:
+    path: ../injection
+  riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+```
+
+Architecting Flutter apps にならって、Repository メソッドの結果は `Result` 型相当のオブジェクトを返すようにして、Repository 層以下で発生する例外が、意図せず上層に表れないようにします。
+
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'result.freezed.dart';
+
+/// A result of repository method.
+@freezed
+sealed class RepositoryResult<T> with _$RepositoryResult<T> {
+  /// Constructs a [RepositoryResult] with success.
+  const factory RepositoryResult.success(T data) = SuccessRepositoryResult<T>;
+
+  /// Constructs a [RepositoryResult] with failure.
+  const factory RepositoryResult.failure(Object e) = FailureRepositoryResult;
+}
+```
+
+```dart
+import 'package:injection/injection.dart';
+import 'package:riverpod/riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import 'util/result.dart';
+
+part 'count_repository.g.dart';
+
+/// Provides a [CountRepository].
+@riverpod
+CountRepository countRepository(Ref ref) => CountRepository(ref);
+
+/// A repository for counting.
+class CountRepository {
+  /// Constructs a [CountRepository].
+  const CountRepository(this._ref);
+
+  final Ref _ref;
+
+  /// Fetches the current count.
+  Future<RepositoryResult<int>> fetchCount() async {
+    try {
+      final count =
+          await _ref.read(sharedPreferencesServiceProvider).getInt('count');
+      return RepositoryResult.success(count ?? 0);
+    } on Exception catch (e) {
+      return RepositoryResult.failure(e);
+    }
+  }
+
+  /// Saves the new count.
+  Future<RepositoryResult<void>> saveCount(int count) async {
+    try {
+      await _ref.read(sharedPreferencesServiceProvider).setInt('count', count);
+      return const RepositoryResult.success(null);
+    } on Exception catch (e) {
+      return RepositoryResult.failure(e);
+    }
+  }
+
+  /// Clears the count.
+  Future<RepositoryResult<void>> clearCount() async {
+    try {
+      await _ref.read(sharedPreferencesServiceProvider).remove('count');
+      return const RepositoryResult.success(null);
+    } on Exception catch (e) {
+      return RepositoryResult.failure(e);
+    }
+  }
+}
+```
+
+### injection パッケージ
+
+`injection` パッケージは、Architecting Flutter apps には存在しないレイヤーですが、各パッケージ間の依存をより厳密に限定するために定義しています。
+
+`service` パッケージや、`service` パッケージがラップする `shared_preferences` パッケージに依存し、それらの機能を利用するためのインターフェース定義や依存の注入を助ける実装を記述します。
+
+```yaml
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  freezed_annotation: ^2.4.4
+  meta: ^1.15.0
+  riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  service:
+    path: ../service
+  shared_preferences: ^2.3.4
+```
+
+`service` パッケージの `SharedPreferencesService` を利用するためのインターフェースを定義します。
+
+`SharedPreferencesService` クラスのインスタンスを生成する関数も一緒に定義しておくことにしました。
+
+```dart
+import 'package:meta/meta.dart';
+import 'package:riverpod/riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:service/service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+part 'shared_preferences.g.dart';
+
+/// Provides a [SharedPreferencesService] instance.
+@riverpod
+SharedPreferencesService sharedPreferencesService(Ref ref) =>
+    throw UnimplementedError();
+
+/// Creates a [SharedPreferencesService] instance.
+SharedPreferencesService getSharedPreferencesService({
+  @visibleForTesting SharedPreferencesAsync? sharedPreferencesAsync,
+}) =>
+    SharedPreferencesService(
+      sharedPreferencesAsync ?? SharedPreferencesAsync(),
+    );
+```
+
+`app` パッケージの `ProviderScope` で Shared Preferences の挙動を上書きするための `List<Override>` も定義しておくことにしました。
+
+このようにすることで、`app` パッケージが `shared_preferences` パッケージに直接依存することがなくなります。
+
+```dart
+import 'package:riverpod/riverpod.dart';
+
+import 'shared_preferences.dart';
+
+/// Get list of overrides for `ProviderScope`.
+List<Override> getOverrides() => [
+      sharedPreferencesServiceProvider
+          .overrideWithValue(getSharedPreferencesService()),
+    ];
+```
+
+### app パッケージ
+
+app パッケージでは、`repository` パッケージを利用して ViewModel からデータソースにアクセスし、Riverpod を用いて状態管理と UI の体験を実装します。
+
+```yaml
+environment:
+  sdk: ^3.6.0
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  injection:
+    path: ../injection
+  repository:
+    path: ../repository
+  riverpod_annotation: ^2.6.1
+```
+
+エントリポイントの `ProviderScope.overrides` で `injection` パッケージに定義した `getOverrides` 関数を利用します。
+
+```dart
+void main() {
+  final overrides = getOverrides();
+  runApp(
+    ProviderScope(
+      overrides: overrides,
+      child: const MaterialApp(home: Counter()),
+    ),
+  );
+}
+```
+
+View の実装は下記の通りです。
+
+```dart
+/// A counter screen.
+class Counter extends ConsumerWidget {
+  /// Constructs a [Counter].
+  const Counter({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final counter = ref.watch(counterViewModelProvider).valueOrNull ?? 0;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Counter')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Counter: $counter'),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  ref.read(counterViewModelProvider.notifier).increment(),
+              icon: const Icon(Icons.add),
+              label: const Text('Increment'),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  ref.read(counterViewModelProvider.notifier).clear(),
+              icon: const Icon(Icons.delete),
+              label: const Text('Clear'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+ViewModel の実装は下記の通りです。
+
+Riverpod の Notifier による実装を ViewModel とみなすことにしました。
+
+```dart
+import 'package:repository/repository.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'counter_view_model.g.dart';
+
+/// A view model for the counter.
+@riverpod
+class CounterViewModel extends _$CounterViewModel {
+  @override
+  Future<int> build() async {
+    final result = await ref.watch(countRepositoryProvider).fetchCount();
+    switch (result) {
+      case SuccessRepositoryResult(:final data):
+        return data;
+      case FailureRepositoryResult():
+        return 0;
+    }
+  }
+
+  /// Increments the count.
+  ///
+  /// Throws an [IncrementCounterException] if the count cannot be incremented.
+  Future<void> increment() async {
+    final count = state.valueOrNull ?? 0;
+    final result = await ref.read(countRepositoryProvider).saveCount(count + 1);
+    switch (result) {
+      case SuccessRepositoryResult():
+        ref.invalidate(countRepositoryProvider);
+        return;
+      case FailureRepositoryResult():
+        throw IncrementCounterException();
+    }
+  }
+
+  /// Clears the count.
+  ///
+  /// Throws a [ClearCounterException] if the count cannot be cleared.
+  Future<void> clear() async {
+    final result = await ref.read(countRepositoryProvider).clearCount();
+    switch (result) {
+      case SuccessRepositoryResult():
+        ref.invalidate(countRepositoryProvider);
+        return;
+      case FailureRepositoryResult():
+        throw ClearCounterException();
+    }
+  }
+}
+```
+
