@@ -3,7 +3,7 @@ title: "LLM-as-a-Judge とルーブリック評価"
 emoji: "🧑‍⚖️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["LLM", "LLMOps", "AI", "生成 AI", "aiエンジニアリング", "GPT", "Claude", "Gemini"]
-published: false
+published: true
 publication_name: "ubie_dev"
 published_at: 2025-12-19 00:00
 ---
